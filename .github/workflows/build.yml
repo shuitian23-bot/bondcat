@@ -1,9 +1,6 @@
 name: Build BondCat
 
 on:
-  push:
-    tags:
-      - 'v*'
   workflow_dispatch:
 
 permissions:
@@ -48,7 +45,7 @@ jobs:
         run: npm install
 
       - name: Build Tauri app
-        run: npx tauri build --target ${{ matrix.target }}
+        run: npx tauri build --target ${{ matrix.target }} --ci
 
       - name: Upload macOS DMG
         if: runner.os == 'macOS'
