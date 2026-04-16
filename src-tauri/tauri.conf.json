@@ -10,21 +10,28 @@
     "withGlobalTauri": true,
     "windows": [
       {
-        "title": "像素邦德小猫·敲敲打宝",
-        "width": 400,
-        "height": 500,
-        "resizable": true,
+        "label": "main",
+        "title": "BondCat",
+        "width": 1200,
+        "height": 200,
+        "x": 100,
+        "y": 700,
+        "resizable": false,
         "transparent": true,
         "decorations": false,
         "alwaysOnTop": true,
-        "skipTaskbar": false,
-        "center": true,
-        "minWidth": 300,
-        "minHeight": 400
+        "skipTaskbar": true,
+        "shadow": false,
+        "visible": true
       }
     ],
     "security": {
       "csp": null
+    },
+    "trayIcon": {
+      "iconPath": "icons/icon.png",
+      "iconAsTemplate": true,
+      "tooltip": "像素邦德小猫·敲敲打宝"
     }
   },
   "bundle": {

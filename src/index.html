@@ -5,369 +5,272 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>BondCat</title>
 <style>
-  @font-face {
-    font-family: 'PixelFont';
-    src: local('Courier New');
-  }
-  * { margin: 0; padding: 0; box-sizing: border-box; user-select: none; }
-  html, body {
-    width: 100%; height: 100%;
-    background: transparent;
-    overflow: hidden;
-    font-family: 'Courier New', monospace;
-    color: #e0e0e0;
-  }
-  #app {
-    width: 100%; height: 100%;
-    display: flex; flex-direction: column;
-    background: rgba(20,20,40,0.88);
-    border-radius: 12px;
-    border: 1px solid rgba(120,120,180,0.3);
-    overflow: hidden;
-  }
-  /* Title bar */
-  #titlebar {
-    height: 30px; display: flex; align-items: center;
-    justify-content: space-between;
-    padding: 0 8px;
-    background: rgba(30,30,60,0.95);
-    border-bottom: 1px solid rgba(120,120,180,0.2);
-    flex-shrink: 0;
-  }
-  #titlebar .title {
-    font-size: 11px; color: #f0c040; letter-spacing: 2px;
-    text-shadow: 0 0 4px rgba(240,192,64,0.5);
-  }
-  #titlebar .btns { display: flex; gap: 6px; }
-  #titlebar .btns span {
-    width: 16px; height: 16px; display: flex; align-items: center;
-    justify-content: center; font-size: 10px; cursor: pointer;
-    border-radius: 3px; background: rgba(80,80,120,0.6);
-    color: #aaa; transition: background 0.15s;
-  }
-  #titlebar .btns span:hover { background: rgba(120,120,180,0.8); color: #fff; }
-  #titlebar .btns .close-btn:hover { background: rgba(200,60,60,0.8); }
-  /* Status bar */
-  #statusbar {
-    height: 24px; display: flex; align-items: center;
-    justify-content: center; gap: 16px;
-    font-size: 10px; color: #aac; flex-shrink: 0;
-    background: rgba(25,25,50,0.6);
-    border-bottom: 1px solid rgba(80,80,140,0.15);
-  }
-  #statusbar .stat { display: flex; align-items: center; gap: 3px; }
-  #statusbar .stat .icon { color: #f0c040; }
-  #statusbar .stat .val { color: #fff; font-weight: bold; }
-  /* Game canvas */
-  #game-wrap {
-    flex: 1; position: relative; overflow: hidden;
-    cursor: crosshair;
-  }
-  #gameCanvas { width: 100%; height: 100%; display: block; }
-  /* Bottom bar */
-  #bottombar {
-    height: 36px; display: flex; align-items: center;
-    justify-content: center; gap: 8px; flex-shrink: 0;
-    background: rgba(25,25,50,0.8);
-    border-top: 1px solid rgba(80,80,140,0.2);
-    padding: 0 12px;
-  }
-  .pixel-btn {
-    padding: 4px 14px; font-size: 10px; font-family: 'Courier New', monospace;
-    background: rgba(60,60,100,0.8); color: #ccc; border: 1px solid rgba(100,100,160,0.5);
-    border-radius: 4px; cursor: pointer; letter-spacing: 1px;
-    transition: all 0.15s;
-  }
-  .pixel-btn:hover { background: rgba(80,80,140,0.9); color: #fff; border-color: rgba(140,140,200,0.7); }
-  .pixel-btn.active { background: rgba(100,80,40,0.9); color: #f0c040; border-color: rgba(200,160,40,0.6); }
-  /* Modal */
-  .modal-overlay {
-    position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-    background: rgba(10,10,30,0.85); display: none;
-    flex-direction: column; align-items: center; justify-content: center;
-    z-index: 100;
-  }
-  .modal-overlay.show { display: flex; }
-  .modal-box {
-    width: 85%; max-height: 80%; background: rgba(30,30,60,0.95);
-    border: 1px solid rgba(120,120,180,0.4); border-radius: 8px;
-    padding: 12px; overflow-y: auto;
-  }
-  .modal-box h3 {
-    font-size: 13px; color: #f0c040; margin-bottom: 10px;
-    text-align: center; letter-spacing: 2px;
-  }
-  .modal-close {
-    position: absolute; top: 8px; right: 12px;
-    font-size: 14px; color: #888; cursor: pointer;
-  }
-  .modal-close:hover { color: #fff; }
-  /* Modal items */
-  .item-row {
-    display: flex; align-items: center; justify-content: space-between;
-    padding: 6px 8px; margin: 3px 0; border-radius: 4px;
-    background: rgba(40,40,70,0.6); font-size: 10px;
-  }
-  .item-row .name { flex: 1; }
-  .item-row .cost { color: #f0c040; margin: 0 8px; }
-  .item-row button {
-    padding: 2px 10px; font-size: 9px; font-family: 'Courier New', monospace;
-    background: rgba(80,60,20,0.8); color: #f0c040; border: 1px solid rgba(180,140,40,0.5);
-    border-radius: 3px; cursor: pointer;
-  }
-  .item-row button:hover { background: rgba(120,90,30,0.9); }
-  .item-row button:disabled { opacity: 0.4; cursor: default; }
-  .item-row .equipped { color: #4f4; font-size: 9px; }
-  .chest-row { display: flex; align-items: center; gap: 8px; margin: 4px 0; font-size: 10px; }
-  .chest-row .cnt { color: #fff; font-weight: bold; min-width: 20px; text-align: right; }
-  .equip-list { margin-top: 8px; font-size: 10px; color: #aac; }
-  .equip-list div { padding: 2px 0; }
-  .open-all-btn {
-    display: block; margin: 8px auto; padding: 4px 20px;
-    font-size: 10px; font-family: 'Courier New', monospace;
-    background: rgba(80,60,20,0.8); color: #f0c040;
-    border: 1px solid rgba(180,140,40,0.5); border-radius: 4px; cursor: pointer;
-  }
-  .open-all-btn:hover { background: rgba(120,90,30,0.9); }
-  .reset-btn {
-    display: block; margin: 10px auto; padding: 4px 20px;
-    font-size: 10px; font-family: 'Courier New', monospace;
-    background: rgba(120,30,30,0.7); color: #faa;
-    border: 1px solid rgba(200,60,60,0.5); border-radius: 4px; cursor: pointer;
-  }
-  .reset-btn:hover { background: rgba(160,40,40,0.8); }
-  .about { text-align: center; font-size: 9px; color: #888; margin-top: 12px; line-height: 1.6; }
-  .loot-msg {
-    text-align: center; font-size: 10px; color: #4f4; margin: 6px 0;
-    min-height: 14px;
-  }
+* { margin: 0; padding: 0; box-sizing: border-box; user-select: none; }
+html, body {
+  width: 100%; height: 100%;
+  background: transparent !important;
+  overflow: hidden;
+}
+canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  background: transparent !important;
+}
 </style>
 </head>
 <body>
-<div id="app">
-  <div id="titlebar" data-tauri-drag-region>
-    <span class="title" data-tauri-drag-region>BONDCAT</span>
-    <div class="btns">
-      <span id="btn-min" title="最小化">─</span>
-      <span id="btn-close" class="close-btn" title="关闭">✕</span>
-    </div>
-  </div>
-  <div id="statusbar">
-    <div class="stat"><span class="icon">◆</span><span>金币</span> <span class="val" id="st-gold">0</span></div>
-    <div class="stat"><span class="icon">★</span><span>积分</span> <span class="val" id="st-score">0</span></div>
-    <div class="stat"><span class="icon">☠</span><span>击杀</span> <span class="val" id="st-kills">0</span></div>
-    <div class="stat"><span class="icon">▲</span><span>Lv</span> <span class="val" id="st-level">1</span></div>
-  </div>
-  <div id="game-wrap">
-    <canvas id="gameCanvas"></canvas>
-    <!-- Modals -->
-    <div class="modal-overlay" id="modal-bag">
-      <span class="modal-close" data-close="modal-bag">✕</span>
-      <div class="modal-box" id="bag-content"></div>
-    </div>
-    <div class="modal-overlay" id="modal-shop">
-      <span class="modal-close" data-close="modal-shop">✕</span>
-      <div class="modal-box" id="shop-content"></div>
-    </div>
-    <div class="modal-overlay" id="modal-settings">
-      <span class="modal-close" data-close="modal-settings">✕</span>
-      <div class="modal-box" id="settings-content"></div>
-    </div>
-  </div>
-  <div id="bottombar">
-    <button class="pixel-btn" id="btn-bag">背包</button>
-    <button class="pixel-btn" id="btn-shop">商城</button>
-    <button class="pixel-btn" id="btn-settings">设置</button>
-  </div>
-</div>
-
+<canvas id="c"></canvas>
 <script>
-// ============================================================
-// GAME STATE
-// ============================================================
-const DEFAULT_STATE = {
-  gold: 0, score: 0, kills: 0, level: 1, xp: 0,
-  weapon: 'wood_sword', costume: 'default',
-  chests: { normal: 0, rare: 0, epic: 0 },
-  equipment: [], // collected equipment names
-  ownedWeapons: ['wood_sword'],
-  ownedCostumes: ['default'],
-};
-
-let state = loadState();
-
-function loadState() {
-  try {
-    const s = JSON.parse(localStorage.getItem('bondcat_save'));
-    if (s) return { ...DEFAULT_STATE, ...s };
-  } catch(e) {}
-  return { ...DEFAULT_STATE };
-}
-function saveState() { localStorage.setItem('bondcat_save', JSON.stringify(state)); }
-function resetState() { state = { ...DEFAULT_STATE, chests: {normal:0,rare:0,epic:0}, equipment:[], ownedWeapons:['wood_sword'], ownedCostumes:['default'] }; saveState(); }
-
-// ============================================================
-// WEAPON / COSTUME DATA
-// ============================================================
-const WEAPONS = {
-  wood_sword: { name: '木剑', atk: 1, color: '#c8a050', cost: 0, effColor: '#fff' },
-  iron_hammer: { name: '铁锤', atk: 2, color: '#90a0b0', cost: 500, effColor: '#60b0ff' },
-  magic_wand: { name: '魔杖', atk: 3, color: '#b060e0', cost: 2000, effColor: '#c060ff' },
-};
-const COSTUMES = {
-  default: { name: '默认(橙)', bodyColor: '#e08030', cost: 0 },
-  knight: { name: '骑士(银)', bodyColor: '#b0b8c0', cost: 1000 },
-  mage: { name: '魔法(蓝)', bodyColor: '#4080d0', cost: 3000 },
-};
-
-function curWeapon() { return WEAPONS[state.weapon]; }
-function curCostume() { return COSTUMES[state.costume]; }
-
 // ============================================================
 // CANVAS SETUP
 // ============================================================
-const canvas = document.getElementById('gameCanvas');
+const canvas = document.getElementById('c');
 const ctx = canvas.getContext('2d');
 
-function resizeCanvas() {
-  const wrap = document.getElementById('game-wrap');
-  canvas.width = wrap.clientWidth;
-  canvas.height = wrap.clientHeight;
+function resize() {
+  canvas.width = window.innerWidth;
+  canvas.height = window.innerHeight;
 }
-resizeCanvas();
-window.addEventListener('resize', resizeCanvas);
+resize();
+window.addEventListener('resize', resize);
+
+// ============================================================
+// GAME STATE (localStorage)
+// ============================================================
+const DEF = {
+  gold: 0, kills: 0,
+  weapon: 'fist', costume: 'default',
+  chests: { normal: 0, rare: 0, epic: 0 },
+  ownedWeapons: ['fist'],
+  ownedCostumes: ['default'],
+};
+let S = load();
+function load() {
+  try { const d = JSON.parse(localStorage.getItem('bondcat2')); if (d) return { ...DEF, ...d, chests: { ...DEF.chests, ...(d.chests||{}) } }; } catch(e) {}
+  return JSON.parse(JSON.stringify(DEF));
+}
+function save() { localStorage.setItem('bondcat2', JSON.stringify(S)); }
+
+// ============================================================
+// WEAPONS & COSTUMES
+// ============================================================
+const WEAPONS = {
+  fist:       { name: '铁拳', atk: 1, cost: 0 },
+  wood_sword: { name: '木剑', atk: 2, cost: 200 },
+  iron_sword: { name: '铁剑', atk: 3, cost: 800 },
+  magic_wand: { name: '魔杖', atk: 5, cost: 2000 },
+};
+const COSTUMES = {
+  default: { name: '橙猫', body: '#e08030', cost: 0 },
+  knight:  { name: '骑士银', body: '#b0b8c8', cost: 500 },
+  mage:    { name: '魔法蓝', body: '#4080d0', cost: 1500 },
+  golden:  { name: '黄金猫', body: '#f0c040', cost: 3000 },
+};
+function curAtk() { return WEAPONS[S.weapon].atk; }
+function curBody() { return COSTUMES[S.costume].body; }
 
 // ============================================================
 // PIXEL DRAWING HELPERS
 // ============================================================
-const PX = 3; // pixel scale
+const SC = 3; // pixel scale
 
-function drawPixelArt(x, y, data, scale) {
-  // data: array of rows, each row is array of colors (null = transparent)
-  const s = scale || PX;
+function px(x, y, w, h, color) {
+  ctx.fillStyle = color;
+  ctx.fillRect(x, y, w || SC, h || SC);
+}
+
+function drawSprite(ox, oy, data, scale) {
+  const s = scale || SC;
   for (let r = 0; r < data.length; r++) {
     for (let c = 0; c < data[r].length; c++) {
       if (data[r][c]) {
         ctx.fillStyle = data[r][c];
-        ctx.fillRect(x + c * s, y + r * s, s, s);
+        ctx.fillRect(ox + c * s, oy + r * s, s, s);
+      }
+    }
+  }
+}
+
+// Flash-white version
+function drawSpriteFlash(ox, oy, data, scale) {
+  const s = scale || SC;
+  for (let r = 0; r < data.length; r++) {
+    for (let c = 0; c < data[r].length; c++) {
+      if (data[r][c]) {
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(ox + c * s, oy + r * s, s, s);
       }
     }
   }
 }
 
 // ============================================================
-// SPRITE DATA — Bond Cat (16x16)
+// PIXEL FONT (3x5 digits + some chars)
 // ============================================================
-function getCatSprite(bodyColor) {
-  const B = bodyColor;       // body
-  const S = '#c06820';       // stripes (darker)
-  const W = '#f0e8d0';       // white parts
-  const E = '#202020';       // eyes/sunglasses
-  const G = '#303030';       // glasses frame
-  const N = '#e05050';       // nose
-  const P = '#e8b0a0';       // inner ear
-  const T = '#d08030';       // tail
-  const _ = null;
-  return [
-    [_,_,_,_,_,B,B,_,_,B,B,_,_,_,_,_],
-    [_,_,_,_,B,P,B,B,B,B,P,B,_,_,_,_],
-    [_,_,_,_,B,B,B,B,B,B,B,B,_,_,_,_],
-    [_,_,_,B,S,B,B,B,B,B,B,S,B,_,_,_],
-    [_,_,_,B,G,G,G,G,G,G,G,G,B,_,_,_],
-    [_,_,_,B,G,E,E,G,G,E,E,G,B,_,_,_],
-    [_,_,_,B,B,B,B,N,B,B,B,B,B,_,_,_],
-    [_,_,_,B,B,W,B,B,B,W,B,B,B,_,_,_],
-    [_,_,B,S,B,B,B,B,B,B,B,S,B,B,_,_],
-    [_,_,B,B,B,B,B,B,B,B,B,B,B,B,_,_],
-    [_,_,B,S,B,B,B,B,B,B,B,S,B,B,_,_],
-    [_,_,B,B,B,B,B,B,B,B,B,B,B,B,_,_],
-    [_,_,_,B,B,B,B,B,B,B,B,B,B,_,_,_],
-    [_,_,_,_,B,B,_,_,_,_,B,B,_,_,_,_],
-    [_,_,_,_,B,B,_,_,_,_,B,B,_,_,_,_],
-    [_,_,_,T,T,T,_,_,_,_,_,_,_,_,_,_],
-  ];
+const FONT = {
+  '0': [[1,1,1],[1,0,1],[1,0,1],[1,0,1],[1,1,1]],
+  '1': [[0,1,0],[1,1,0],[0,1,0],[0,1,0],[1,1,1]],
+  '2': [[1,1,1],[0,0,1],[1,1,1],[1,0,0],[1,1,1]],
+  '3': [[1,1,1],[0,0,1],[1,1,1],[0,0,1],[1,1,1]],
+  '4': [[1,0,1],[1,0,1],[1,1,1],[0,0,1],[0,0,1]],
+  '5': [[1,1,1],[1,0,0],[1,1,1],[0,0,1],[1,1,1]],
+  '6': [[1,1,1],[1,0,0],[1,1,1],[1,0,1],[1,1,1]],
+  '7': [[1,1,1],[0,0,1],[0,0,1],[0,1,0],[0,1,0]],
+  '8': [[1,1,1],[1,0,1],[1,1,1],[1,0,1],[1,1,1]],
+  '9': [[1,1,1],[1,0,1],[1,1,1],[0,0,1],[1,1,1]],
+  '+': [[0,0,0],[0,1,0],[1,1,1],[0,1,0],[0,0,0]],
+  '-': [[0,0,0],[0,0,0],[1,1,1],[0,0,0],[0,0,0]],
+  ' ': [[0,0,0],[0,0,0],[0,0,0],[0,0,0],[0,0,0]],
+};
+
+function drawPixelText(text, x, y, color, scale) {
+  const s = scale || 2;
+  const str = String(text);
+  let cx = x;
+  for (let i = 0; i < str.length; i++) {
+    const glyph = FONT[str[i]];
+    if (glyph) {
+      ctx.fillStyle = color;
+      for (let r = 0; r < glyph.length; r++) {
+        for (let c = 0; c < glyph[r].length; c++) {
+          if (glyph[r][c]) ctx.fillRect(cx + c * s, y + r * s, s, s);
+        }
+      }
+      cx += 4 * s;
+    } else {
+      cx += 3 * s;
+    }
+  }
+  return cx - x; // width drawn
 }
 
 // ============================================================
-// SPRITE DATA — Monsters (12x12)
+// SPRITE: CAT (16x16 pixels)
 // ============================================================
-const MONSTER_TYPES = [
-  { // Slime (green), level 1
-    name: '史莱姆', level: 1, hp: 2, scoreReward: 10, xpReward: 5,
-    color: '#40c040',
+function catSprite(bodyColor, frame, attacking) {
+  const B = bodyColor;
+  const S = '#c06820'; // stripes
+  const W = '#f0e8d0'; // white
+  const E = '#1a1a2e'; // eye/sunglasses lens
+  const G = '#2a2a3a'; // glasses frame
+  const N = '#e05050'; // nose
+  const P = '#e8b0a0'; // inner ear
+  const T = '#d08030'; // tail
+  const M = '#f8f0e0'; // mouth/chin
+  const _ = null;
+
+  // Idle bob: frame 0 = normal, frame 1 = slightly up
+  const base = [
+    [_,_,_,_,B,B,_,_,_,_,B,B,_,_,_,_],  // ears
+    [_,_,_,B,P,B,B,_,_,B,B,P,B,_,_,_],  // inner ears
+    [_,_,_,B,B,B,B,B,B,B,B,B,B,_,_,_],  // forehead
+    [_,_,B,S,B,B,B,B,B,B,B,B,S,B,_,_],  // stripes top
+    [_,_,B,G,G,G,G,B,G,G,G,G,B,B,_,_],  // glasses top
+    [_,_,B,G,E,E,G,B,G,E,E,G,B,B,_,_],  // eyes/lenses
+    [_,_,B,G,G,G,G,B,G,G,G,G,B,B,_,_],  // glasses bottom
+    [_,_,_,B,B,M,N,M,M,B,B,B,B,_,_,_],  // nose/mouth
+    [_,_,_,B,B,M,M,M,M,B,B,B,_,_,_,_],  // chin
+    [_,_,B,S,B,B,B,B,B,B,B,S,B,_,_,_],  // body top with stripes
+    [_,_,B,B,B,B,B,B,B,B,B,B,B,_,_,_],  // body mid
+    [_,_,B,S,B,B,B,B,B,B,B,S,B,_,_,_],  // body stripes
+    [_,_,_,B,B,B,B,B,B,B,B,B,_,_,_,_],  // body bottom
+    [_,_,_,_,B,B,_,_,_,B,B,_,_,_,_,_],  // legs
+    [_,_,_,_,W,W,_,_,_,W,W,_,_,_,_,_],  // paws
+    [_,T,T,T,_,_,_,_,_,_,_,_,_,_,_,_],  // tail
+  ];
+
+  // Attack frame: arm extended to the right
+  if (attacking) {
+    const a = JSON.parse(JSON.stringify(base));
+    // Modify right arm area - extend pixels to the right
+    a[9] =  [_,_,B,S,B,B,B,B,B,B,B,S,B,B,B,_];
+    a[10] = [_,_,B,B,B,B,B,B,B,B,B,B,B,_,B,B];
+    a[11] = [_,_,B,S,B,B,B,B,B,B,B,S,B,_,_,_];
+    return a;
+  }
+
+  return base;
+}
+
+// ============================================================
+// SPRITE: MONSTERS
+// ============================================================
+const MONS = {
+  slime: {
+    name: '史莱姆', hp: 3, gold: 5, color: '#40c040',
     sprite: (function(){
-      const C='#40c040',D='#308030',W='#f0f0f0',E='#202020',_=null;
+      const C='#40c040',D='#2a8a2a',L='#70e070',W='#f0f0f0',E='#1a1a2e',_=null;
       return [
+        [_,_,_,_,_,_,_,_,_,_,_,_],
         [_,_,_,_,C,C,C,C,_,_,_,_],
-        [_,_,_,C,C,C,C,C,C,_,_,_],
-        [_,_,C,C,C,C,C,C,C,C,_,_],
+        [_,_,_,C,L,C,C,C,C,_,_,_],
+        [_,_,C,L,C,C,C,C,C,C,_,_],
+        [_,C,C,C,W,E,C,W,E,C,C,_],
+        [_,C,C,C,W,E,C,W,E,C,C,_],
         [_,C,C,C,C,C,C,C,C,C,C,_],
-        [_,C,C,W,E,C,C,W,E,C,C,_],
-        [_,C,C,W,E,C,C,W,E,C,C,_],
-        [_,C,C,C,C,C,C,C,C,C,C,_],
-        [_,C,C,C,C,C,C,C,C,C,C,_],
-        [_,C,D,C,C,C,C,C,C,D,C,_],
+        [_,C,C,C,C,D,D,C,C,C,C,_],
         [_,_,C,D,C,C,C,C,D,C,_,_],
-        [_,_,_,C,C,C,C,C,C,_,_,_],
+        [_,_,_,C,D,D,D,D,C,_,_,_],
         [_,_,_,_,C,C,C,C,_,_,_,_],
+        [_,_,_,_,_,_,_,_,_,_,_,_],
       ];
     })()
   },
-  { // Bat (purple), level 2
-    name: '蝙蝠', level: 2, hp: 4, scoreReward: 20, xpReward: 10,
-    color: '#9040c0',
+  bat: {
+    name: '蝙蝠', hp: 5, gold: 10, color: '#9050c0',
     sprite: (function(){
-      const C='#9040c0',D='#6030a0',R='#e04040',E='#f0f0f0',_=null;
+      const C='#9050c0',D='#6a3a9a',L='#b080e0',R='#e04040',E='#f0e0e0',_=null;
       return [
         [_,_,_,_,_,C,C,_,_,_,_,_],
-        [_,C,_,_,C,C,C,C,_,_,C,_],
-        [C,C,C,_,C,C,C,C,_,C,C,C],
+        [_,C,C,_,C,C,C,C,_,C,C,_],
         [C,C,C,C,C,C,C,C,C,C,C,C],
-        [C,D,C,C,E,C,C,E,C,C,D,C],
-        [C,C,C,C,C,C,C,C,C,C,C,C],
-        [_,C,C,C,C,R,R,C,C,C,C,_],
-        [_,_,C,C,C,C,C,C,C,C,_,_],
+        [C,D,C,C,C,L,L,C,C,C,D,C],
+        [C,C,C,C,E,C,C,E,C,C,C,C],
+        [_,C,C,C,C,C,C,C,C,C,C,_],
+        [_,_,C,C,C,R,R,C,C,C,_,_],
         [_,_,_,C,C,C,C,C,C,_,_,_],
+        [_,_,_,_,C,D,D,C,_,_,_,_],
         [_,_,_,_,C,_,_,C,_,_,_,_],
         [_,_,_,_,_,_,_,_,_,_,_,_],
         [_,_,_,_,_,_,_,_,_,_,_,_],
       ];
     })()
   },
-  { // Skeleton (white), level 3
-    name: '骷髅', level: 3, hp: 6, scoreReward: 50, xpReward: 20,
-    color: '#d0d0d0',
+  skeleton: {
+    name: '骷髅', hp: 8, gold: 20, color: '#d0d0d0',
     sprite: (function(){
-      const C='#d0d0d0',D='#a0a0a0',E='#202020',R='#c03030',_=null;
+      const C='#e0e0e0',D='#a0a0a0',E='#1a1a2e',R='#c03030',_=null;
       return [
+        [_,_,_,_,C,C,C,C,_,_,_,_],
         [_,_,_,C,C,C,C,C,C,_,_,_],
         [_,_,C,C,C,C,C,C,C,C,_,_],
         [_,_,C,E,E,C,C,E,E,C,_,_],
         [_,_,C,E,E,C,C,E,E,C,_,_],
-        [_,_,C,C,C,E,C,C,C,C,_,_],
-        [_,_,_,C,E,C,E,C,E,_,_,_],
+        [_,_,_,C,C,E,C,C,C,_,_,_],
+        [_,_,_,C,E,C,E,C,_,_,_,_],
         [_,_,_,_,C,C,C,C,_,_,_,_],
-        [_,_,_,D,C,C,C,C,D,_,_,_],
-        [_,_,_,_,D,C,C,D,_,_,_,_],
+        [_,_,_,D,D,C,C,D,D,_,_,_],
         [_,_,_,_,C,C,C,C,_,_,_,_],
-        [_,_,_,C,C,_,_,C,C,_,_,_],
-        [_,_,_,C,C,_,_,C,C,_,_,_],
+        [_,_,_,_,C,_,_,C,_,_,_,_],
+        [_,_,_,D,D,_,_,D,D,_,_,_],
       ];
     })()
-  }
-];
+  },
+};
+const MON_TYPES = ['slime', 'bat', 'skeleton'];
 
 // ============================================================
-// CHEST SPRITES (8x8)
+// CHEST SPRITE (8x8)
 // ============================================================
 function chestSprite(type) {
-  const colors = {
-    normal: { body: '#8B5A2B', lid: '#A0703C', lock: '#f0c040', highlight: '#C09050' },
-    rare:   { body: '#3060a0', lid: '#4080c0', lock: '#f0c040', highlight: '#60a0e0' },
-    epic:   { body: '#7030a0', lid: '#9050c0', lock: '#f0c040', highlight: '#b070e0' },
+  const palettes = {
+    normal: { B:'#8B5A2B', L:'#A0703C', K:'#f0c040', H:'#C09050' },
+    rare:   { B:'#3060a0', L:'#4080c0', K:'#f0c040', H:'#60a0e0' },
+    epic:   { B:'#7030a0', L:'#9050c0', K:'#f0c040', H:'#b070e0' },
   };
-  const c = colors[type];
-  const B=c.body, L=c.lid, K=c.lock, H=c.highlight, _=null;
+  const p = palettes[type];
+  const B=p.B, L=p.L, K=p.K, H=p.H, _=null;
   return [
     [_,L,L,L,L,L,L,_],
     [L,H,H,L,L,L,L,L],
@@ -383,141 +286,150 @@ function chestSprite(type) {
 // ============================================================
 // GAME OBJECTS
 // ============================================================
-let cat = { x: 0, y: 0, facing: 1, attackTimer: 0, attackAngle: 0 };
+let cat = { x: 0, y: 0, attacking: false, atkTimer: 0, atkDir: 1, idleFrame: 0 };
 let monsters = [];
-let chestDrops = []; // { x, y, type, timer }
+let chests = [];
 let particles = [];
-let floatingTexts = [];
-let slashEffects = [];
+let floatTexts = [];
+let slashArcs = [];
+let stars = [];
 
-let lastSpawnTime = 0;
-const SPAWN_INTERVAL = 5000;
-let animFrame = 0;
-let gameTime = 0;
-let openModal = null;
-let lootMessage = '';
-let lootMsgTimer = 0;
-
-function spawnMonster() {
-  const type = MONSTER_TYPES[Math.floor(Math.random() * MONSTER_TYPES.length)];
-  const angle = Math.random() * Math.PI * 2;
-  const dist = 60 + Math.random() * 60;
-  const mx = cat.x + Math.cos(angle) * dist;
-  const my = cat.y + Math.sin(angle) * dist;
-  monsters.push({
-    ...type,
-    x: mx, y: my,
-    currentHp: type.hp,
-    bobPhase: Math.random() * Math.PI * 2,
-    hitFlash: 0,
+// Pre-generate stars
+for (let i = 0; i < 12; i++) {
+  stars.push({
+    x: Math.random(),
+    y: Math.random() * 0.5,
+    phase: Math.random() * Math.PI * 2,
+    size: 1 + Math.random(),
   });
 }
 
+let gameTime = 0;
+let lastSpawn = 0;
+let visible = true;
+let modalOpen = null; // null | 'backpack' | 'shop'
+
+// ============================================================
+// SPAWN MONSTER
+// ============================================================
+function spawnMonster() {
+  if (monsters.length >= 5) return;
+  const typeKey = MON_TYPES[Math.floor(Math.random() * MON_TYPES.length)];
+  const type = MONS[typeKey];
+  const W = canvas.width;
+  monsters.push({
+    type: typeKey,
+    ...type,
+    currentHp: type.hp,
+    x: W - 20 - Math.random() * 60,
+    y: canvas.height - 30 - Math.random() * 20,
+    vx: -(10 + Math.random() * 15),
+    bobPhase: Math.random() * Math.PI * 2,
+    flash: 0,
+  });
+}
+
+// ============================================================
+// DROP CHEST
+// ============================================================
 function dropChest(x, y) {
   const r = Math.random();
   let type = 'normal';
   if (r > 0.95) type = 'epic';
   else if (r > 0.70) type = 'rare';
-  chestDrops.push({ x, y, type, timer: 15000, bobPhase: 0, scale: 0 });
+  chests.push({ x, y, type, timer: 3, flyTimer: 0, flying: false, glow: 0 });
 }
 
-function addParticles(x, y, color, count) {
-  for (let i = 0; i < count; i++) {
-    const angle = Math.random() * Math.PI * 2;
-    const speed = 1 + Math.random() * 3;
+// ============================================================
+// PARTICLES
+// ============================================================
+function burst(x, y, color, n) {
+  for (let i = 0; i < n; i++) {
+    const a = Math.random() * Math.PI * 2;
+    const spd = 30 + Math.random() * 80;
     particles.push({
       x, y,
-      vx: Math.cos(angle) * speed, vy: Math.sin(angle) * speed - 1,
-      life: 0.5 + Math.random() * 0.5,
-      maxLife: 0.5 + Math.random() * 0.5,
+      vx: Math.cos(a) * spd,
+      vy: Math.sin(a) * spd - 40,
+      life: 0.4 + Math.random() * 0.4,
+      maxLife: 0.4 + Math.random() * 0.4,
       color,
       size: 2 + Math.random() * 3,
     });
   }
 }
 
-function addFloatingText(x, y, text, color) {
-  floatingTexts.push({ x, y, text, color, life: 1.2, maxLife: 1.2 });
+function addText(x, y, text, color, big) {
+  floatTexts.push({ x, y, text, color, life: 1.0, maxLife: 1.0, vy: -50, big: !!big });
 }
 
-function addSlash(fromX, fromY, toX, toY, color) {
-  slashEffects.push({ fromX, fromY, toX, toY, color, life: 0.3, maxLife: 0.3 });
+function addSlashArc(x, y, dir) {
+  slashArcs.push({ x, y, dir, life: 0.25, maxLife: 0.25 });
 }
 
 // ============================================================
-// ATTACK LOGIC
+// ATTACK
 // ============================================================
-function handleClick(cx, cy) {
-  if (openModal) return;
+function doAttack() {
+  if (modalOpen) return;
+  cat.attacking = true;
+  cat.atkTimer = 0.3;
 
-  const rect = canvas.getBoundingClientRect();
-  const mx = cx - rect.left;
-  const my = cy - rect.top;
+  addSlashArc(cat.x + cat.atkDir * 30, cat.y - 20, cat.atkDir);
 
-  // Score +1 per click
-  state.score += 1;
-
-  // Direction
-  const dx = mx - cat.x;
-  const dy = my - cat.y;
-  const angle = Math.atan2(dy, dx);
-  cat.facing = dx >= 0 ? 1 : -1;
-  cat.attackTimer = 0.3;
-  cat.attackAngle = angle;
-
-  // Slash effect
-  const slashDist = 40;
-  const slashX = cat.x + Math.cos(angle) * slashDist;
-  const slashY = cat.y + Math.sin(angle) * slashDist;
-  addSlash(cat.x, cat.y, slashX, slashY, curWeapon().effColor);
-
-  // Check hits
-  const atkRange = 50;
-  const atk = curWeapon().atk;
+  const atk = curAtk();
+  const range = 150;
   for (let i = monsters.length - 1; i >= 0; i--) {
     const m = monsters[i];
-    const dist = Math.hypot(m.x - cat.x, m.y - cat.y);
-    // angle check
-    const mAngle = Math.atan2(m.y - cat.y, m.x - cat.x);
-    let angleDiff = Math.abs(mAngle - angle);
-    if (angleDiff > Math.PI) angleDiff = Math.PI * 2 - angleDiff;
-    if (dist < atkRange + 20 && angleDiff < Math.PI / 3) {
+    const dx = m.x - cat.x;
+    const dy = m.y - cat.y;
+    const dist = Math.sqrt(dx * dx + dy * dy);
+    // Only hit monsters in front of cat (to the right)
+    if (dist < range && dx * cat.atkDir > -20) {
       m.currentHp -= atk;
-      m.hitFlash = 0.15;
-      addFloatingText(m.x, m.y - 20, `-${atk}`, '#ff4040');
-      addParticles(m.x, m.y, '#ff8040', 4);
+      m.flash = 0.12;
+      addText(m.x, m.y - 30, '-' + atk, '#ff4444');
+      burst(m.x, m.y, '#ff8040', 4);
+
       if (m.currentHp <= 0) {
-        // Kill
-        state.kills += 1;
-        state.score += m.scoreReward;
-        state.xp += m.xpReward;
-        // Level up check
-        const xpNeeded = state.level * 50;
-        if (state.xp >= xpNeeded) { state.level += 1; state.xp -= xpNeeded; addFloatingText(cat.x, cat.y - 40, 'LEVEL UP!', '#f0c040'); }
-        addFloatingText(m.x, m.y - 35, `+${m.scoreReward}`, '#f0c040');
-        addParticles(m.x, m.y, m.color, 15);
+        S.kills++;
+        S.gold += m.gold;
+        addText(m.x, m.y - 50, '+' + m.gold, '#f0c040', true);
+        burst(m.x, m.y, m.color, 18);
         dropChest(m.x, m.y);
         monsters.splice(i, 1);
+        save();
       }
     }
   }
-
-  // Check chest pickup
-  for (let i = chestDrops.length - 1; i >= 0; i--) {
-    const c = chestDrops[i];
-    const dist = Math.hypot(c.x - mx, c.y - my);
-    if (dist < 25) {
-      state.chests[c.type] += 1;
-      addFloatingText(c.x, c.y - 10, `+1 ${c.type === 'normal' ? '普通' : c.type === 'rare' ? '稀有' : '史诗'}宝箱`, c.type === 'normal' ? '#c0a060' : c.type === 'rare' ? '#60a0e0' : '#b070e0');
-      addParticles(c.x, c.y, '#f0c040', 8);
-      chestDrops.splice(i, 1);
-    }
-  }
-
-  saveState();
 }
 
-canvas.addEventListener('click', (e) => handleClick(e.clientX, e.clientY));
+// ============================================================
+// INPUT
+// ============================================================
+window.addEventListener('keydown', (e) => {
+  if (modalOpen) {
+    if (e.key === 'Escape') modalOpen = null;
+    return;
+  }
+  doAttack();
+});
+
+canvas.addEventListener('click', (e) => {
+  if (modalOpen) {
+    // Check if click is outside modal area to close
+    const mx = e.clientX;
+    const my = e.clientY;
+    const mw = 300, mh = 260;
+    const mleft = (canvas.width - mw) / 2;
+    const mtop = (canvas.height - mh) / 2;
+    if (mx < mleft || mx > mleft + mw || my < mtop || my > mtop + mh) {
+      modalOpen = null;
+    }
+    return;
+  }
+  doAttack();
+});
 
 // ============================================================
 // UPDATE
@@ -526,70 +438,96 @@ let lastTime = performance.now();
 
 function update(dt) {
   gameTime += dt;
-  animFrame++;
 
-  // Cat position (center-bottom of canvas)
-  cat.x = canvas.width / 2;
-  cat.y = canvas.height * 0.6;
+  // Cat position: left 1/4, bottom
+  const groundY = canvas.height - 16;
+  cat.x = canvas.width * 0.25;
+  cat.y = groundY;
+  cat.atkDir = 1; // always face right
 
-  if (cat.attackTimer > 0) cat.attackTimer -= dt;
+  // Idle bob
+  cat.idleFrame = Math.sin(gameTime * 2.5);
 
-  // Spawn monsters
-  if (gameTime * 1000 - lastSpawnTime > SPAWN_INTERVAL && monsters.length < 8) {
-    spawnMonster();
-    lastSpawnTime = gameTime * 1000;
+  // Attack timer
+  if (cat.atkTimer > 0) {
+    cat.atkTimer -= dt;
+    if (cat.atkTimer <= 0) cat.attacking = false;
   }
 
-  // Monsters bob and move toward cat slowly
+  // Spawn
+  lastSpawn += dt;
+  if (lastSpawn > 5) {
+    spawnMonster();
+    lastSpawn = 0;
+  }
+
+  // Monsters
   for (const m of monsters) {
     m.bobPhase += dt * 3;
-    if (m.hitFlash > 0) m.hitFlash -= dt;
-    // Slow approach
-    const dx = cat.x - m.x;
-    const dy = cat.y - m.y;
-    const dist = Math.hypot(dx, dy);
-    if (dist > 35) {
-      const speed = 8 + m.level * 3;
-      m.x += (dx / dist) * speed * dt;
-      m.y += (dy / dist) * speed * dt;
+    if (m.flash > 0) m.flash -= dt;
+    // Move toward cat
+    const dx = cat.x + 60 - m.x; // stop a bit in front
+    if (Math.abs(dx) > 5) {
+      m.x += m.vx * dt;
+      // Don't go past cat
+      if (m.x < cat.x + 40) m.x = cat.x + 40 + Math.random() * 20;
     }
   }
 
-  // Chest bobs + timer
-  for (let i = chestDrops.length - 1; i >= 0; i--) {
-    const c = chestDrops[i];
-    c.bobPhase += dt * 2;
-    if (c.scale < 1) c.scale = Math.min(1, c.scale + dt * 5);
-    c.timer -= dt * 1000;
-    if (c.timer <= 0) { chestDrops.splice(i, 1); }
+  // Chests
+  for (let i = chests.length - 1; i >= 0; i--) {
+    const c = chests[i];
+    c.glow += dt * 4;
+    if (!c.flying) {
+      c.timer -= dt;
+      if (c.timer <= 0) {
+        c.flying = true;
+        c.flyTimer = 0.5;
+      }
+    } else {
+      c.flyTimer -= dt;
+      // Fly toward cat
+      const t = 1 - (c.flyTimer / 0.5);
+      c.x = c.x + (cat.x - c.x) * 0.15;
+      c.y = c.y + (cat.y - 20 - c.y) * 0.15;
+      if (c.flyTimer <= 0) {
+        // Collect
+        S.chests[c.type]++;
+        const labels = { normal: '+1', rare: '+1', epic: '+1' };
+        const colors = { normal: '#c0a060', rare: '#60a0e0', epic: '#b070e0' };
+        addText(cat.x, cat.y - 60, labels[c.type], colors[c.type]);
+        burst(cat.x, cat.y - 20, '#f0c040', 6);
+        chests.splice(i, 1);
+        save();
+      }
+    }
   }
 
   // Particles
   for (let i = particles.length - 1; i >= 0; i--) {
     const p = particles[i];
-    p.x += p.vx; p.y += p.vy;
-    p.vy += 5 * dt; // gravity
+    p.x += p.vx * dt;
+    p.y += p.vy * dt;
+    p.vy += 200 * dt;
     p.life -= dt;
     if (p.life <= 0) particles.splice(i, 1);
   }
 
-  // Floating texts
-  for (let i = floatingTexts.length - 1; i >= 0; i--) {
-    const f = floatingTexts[i];
-    f.y -= 30 * dt;
+  // Float texts
+  for (let i = floatTexts.length - 1; i >= 0; i--) {
+    const f = floatTexts[i];
+    f.y += f.vy * dt;
+    f.vy *= 0.95;
     f.life -= dt;
-    if (f.life <= 0) floatingTexts.splice(i, 1);
+    if (f.life <= 0) floatTexts.splice(i, 1);
   }
 
-  // Slash effects
-  for (let i = slashEffects.length - 1; i >= 0; i--) {
-    const s = slashEffects[i];
+  // Slash arcs
+  for (let i = slashArcs.length - 1; i >= 0; i--) {
+    const s = slashArcs[i];
     s.life -= dt;
-    if (s.life <= 0) slashEffects.splice(i, 1);
+    if (s.life <= 0) slashArcs.splice(i, 1);
   }
-
-  // Loot message timer
-  if (lootMsgTimer > 0) { lootMsgTimer -= dt; if (lootMsgTimer <= 0) lootMessage = ''; }
 }
 
 // ============================================================
@@ -599,409 +537,542 @@ function draw() {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
   ctx.imageSmoothingEnabled = false;
 
-  // Ground shadow
-  ctx.save();
-  ctx.globalAlpha = 0.15;
-  ctx.fillStyle = '#80a0ff';
-  ctx.beginPath();
-  ctx.ellipse(cat.x, cat.y + 28, 30, 8, 0, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.restore();
+  const W = canvas.width;
+  const H = canvas.height;
+  const groundY = H - 8;
 
-  // Draw chests
-  for (const c of chestDrops) {
-    const bob = Math.sin(c.bobPhase) * 2;
-    const s = c.scale;
-    ctx.save();
-    ctx.translate(c.x - 12 * s, c.y - 12 * s + bob);
-    ctx.scale(s, s);
-    drawPixelArt(0, 0, chestSprite(c.type), 3);
-    ctx.restore();
+  // ---------- GROUND: pixel grass ----------
+  drawGrass(groundY);
+
+  // ---------- STARS ----------
+  for (const star of stars) {
+    const alpha = 0.3 + Math.sin(gameTime * 2 + star.phase) * 0.3;
+    ctx.globalAlpha = alpha;
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(star.x * W, star.y * H, star.size, star.size);
+  }
+  ctx.globalAlpha = 1;
+
+  // ---------- CHESTS ----------
+  for (const c of chests) {
+    const bob = Math.sin(c.glow) * 2;
+    const cs = chestSprite(c.type);
+    const size = 8 * SC;
+    drawSprite(c.x - size / 2, c.y - size + bob, cs, SC);
     // Glow
-    ctx.save();
-    ctx.globalAlpha = 0.2 + Math.sin(c.bobPhase * 2) * 0.1;
-    const glowColor = c.type === 'epic' ? '#b070e0' : c.type === 'rare' ? '#60a0e0' : '#f0c040';
-    ctx.shadowColor = glowColor;
-    ctx.shadowBlur = 12;
-    ctx.fillStyle = glowColor;
+    const glowAlpha = 0.15 + Math.sin(c.glow * 2) * 0.1;
+    ctx.globalAlpha = glowAlpha;
+    const gc = c.type === 'epic' ? '#b070e0' : c.type === 'rare' ? '#60a0e0' : '#f0c040';
+    ctx.shadowColor = gc;
+    ctx.shadowBlur = 15;
+    ctx.fillStyle = gc;
     ctx.beginPath();
-    ctx.arc(c.x, c.y, 8, 0, Math.PI * 2);
+    ctx.arc(c.x, c.y - size / 2 + bob, 10, 0, Math.PI * 2);
     ctx.fill();
-    ctx.restore();
+    ctx.shadowBlur = 0;
+    ctx.globalAlpha = 1;
   }
 
-  // Draw monsters
+  // ---------- MONSTERS ----------
   for (const m of monsters) {
-    const bob = Math.sin(m.bobPhase) * 2;
-    ctx.save();
-    if (m.hitFlash > 0) {
-      ctx.globalAlpha = 0.5 + Math.sin(gameTime * 40) * 0.3;
-    }
-    drawPixelArt(m.x - 18, m.y - 18 + bob, m.sprite, 3);
-    ctx.restore();
+    const bob = Math.sin(m.bobPhase) * 3;
+    const sprite = MONS[m.type].sprite;
+    const sw = 12 * SC;
+    const sh = 12 * SC;
+    const mx = m.x - sw / 2;
+    const my = m.y - sh + bob;
 
-    // HP bar
+    if (m.flash > 0) {
+      drawSpriteFlash(mx, my, sprite, SC);
+    } else {
+      drawSprite(mx, my, sprite, SC);
+    }
+
+    // HP bar above monster
     const barW = 30;
     const barH = 3;
     const bx = m.x - barW / 2;
-    const by = m.y - 24 + bob;
-    ctx.fillStyle = 'rgba(0,0,0,0.5)';
-    ctx.fillRect(bx, by, barW, barH);
-    const hpRatio = m.currentHp / m.hp;
-    ctx.fillStyle = hpRatio > 0.5 ? '#40c040' : hpRatio > 0.25 ? '#e0c040' : '#e04040';
-    ctx.fillRect(bx, by, barW * hpRatio, barH);
+    const by = m.y - sh - 4 + bob;
+    ctx.fillStyle = 'rgba(0,0,0,0.4)';
+    ctx.fillRect(bx - 1, by - 1, barW + 2, barH + 2);
+    const ratio = m.currentHp / m.hp;
+    ctx.fillStyle = ratio > 0.5 ? '#40e040' : ratio > 0.25 ? '#e0c040' : '#e04040';
+    ctx.fillRect(bx, by, barW * ratio, barH);
   }
 
-  // Draw cat
-  ctx.save();
-  const catSprite = getCatSprite(curCostume().bodyColor);
-  const catW = 16 * PX;
-  const catH = 16 * PX;
-  if (cat.facing < 0) {
-    ctx.translate(cat.x + catW / 2, cat.y - catH / 2);
-    ctx.scale(-1, 1);
-    drawPixelArt(0, 0, catSprite, PX);
-  } else {
-    drawPixelArt(cat.x - catW / 2, cat.y - catH / 2, catSprite, PX);
-  }
-  ctx.restore();
+  // ---------- CAT ----------
+  const catBob = cat.idleFrame * 2;
+  const sprite = catSprite(curBody(), 0, cat.attacking);
+  const catW = 16 * SC;
+  const catH = 16 * SC;
+  const catDrawX = cat.x - catW / 2;
+  const catDrawY = cat.y - catH + catBob;
 
-  // Draw weapon on cat
-  if (cat.attackTimer > 0) {
-    const wp = curWeapon();
-    const progress = 1 - (cat.attackTimer / 0.3);
-    const swingAngle = cat.attackAngle + (progress - 0.5) * 1.5;
-    const dist = 20 + progress * 15;
-    const wx = cat.x + Math.cos(swingAngle) * dist;
-    const wy = cat.y + Math.sin(swingAngle) * dist;
-    ctx.save();
-    ctx.strokeStyle = wp.color;
-    ctx.lineWidth = 3;
-    ctx.shadowColor = wp.effColor;
-    ctx.shadowBlur = 6;
-    ctx.beginPath();
-    ctx.moveTo(cat.x + Math.cos(cat.attackAngle) * 10, cat.y + Math.sin(cat.attackAngle) * 10);
-    ctx.lineTo(wx, wy);
-    ctx.stroke();
-    // Weapon tip
-    ctx.fillStyle = wp.effColor;
-    ctx.fillRect(wx - 2, wy - 2, 5, 5);
-    ctx.restore();
-  }
+  // Shadow under cat
+  ctx.globalAlpha = 0.2;
+  ctx.fillStyle = '#000000';
+  ctx.beginPath();
+  ctx.ellipse(cat.x, cat.y, 18, 5, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.globalAlpha = 1;
 
-  // Draw slash effects
-  for (const s of slashEffects) {
+  drawSprite(catDrawX, catDrawY, sprite, SC);
+
+  // ---------- SLASH ARCS ----------
+  for (const s of slashArcs) {
+    const progress = 1 - s.life / s.maxLife;
     const alpha = s.life / s.maxLife;
     ctx.save();
     ctx.globalAlpha = alpha;
-    ctx.strokeStyle = s.color;
-    ctx.lineWidth = 2 + (1 - alpha) * 3;
-    ctx.shadowColor = s.color;
-    ctx.shadowBlur = 10;
-    // Arc slash
-    const cx = (s.fromX + s.toX) / 2;
-    const cy = (s.fromY + s.toY) / 2;
-    const radius = Math.hypot(s.toX - s.fromX, s.toY - s.fromY) / 2;
-    const baseAngle = Math.atan2(s.toY - s.fromY, s.toX - s.fromX);
+    ctx.strokeStyle = '#ffffff';
+    ctx.lineWidth = 3 - progress * 2;
+    ctx.shadowColor = '#80c0ff';
+    ctx.shadowBlur = 8;
+
+    // Draw arc sweep
+    const cx = s.x;
+    const cy = s.y;
+    const radius = 30 + progress * 20;
+    const startAngle = -Math.PI / 2 - 0.8 + progress * 0.3;
+    const endAngle = -Math.PI / 2 + 0.8 + progress * 0.3;
     ctx.beginPath();
-    ctx.arc(cx, cy, radius, baseAngle - 0.8, baseAngle + 0.8);
+    ctx.arc(cx, cy, radius, startAngle, endAngle);
     ctx.stroke();
+
+    // Inner brighter arc
+    ctx.strokeStyle = '#c0e0ff';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.arc(cx, cy, radius - 4, startAngle + 0.1, endAngle - 0.1);
+    ctx.stroke();
+
+    ctx.shadowBlur = 0;
     ctx.restore();
   }
 
-  // Draw particles
+  // ---------- PARTICLES ----------
   for (const p of particles) {
     const alpha = p.life / p.maxLife;
-    ctx.save();
     ctx.globalAlpha = alpha;
     ctx.fillStyle = p.color;
     ctx.fillRect(p.x - p.size / 2, p.y - p.size / 2, p.size, p.size);
-    ctx.restore();
   }
+  ctx.globalAlpha = 1;
 
-  // Draw floating texts
-  ctx.save();
-  ctx.textAlign = 'center';
-  ctx.font = 'bold 11px "Courier New", monospace';
-  for (const f of floatingTexts) {
-    const alpha = f.life / f.maxLife;
+  // ---------- FLOATING TEXTS ----------
+  for (const f of floatTexts) {
+    const alpha = Math.min(1, f.life / f.maxLife * 2);
     ctx.globalAlpha = alpha;
-    ctx.fillStyle = f.color;
-    ctx.shadowColor = 'rgba(0,0,0,0.8)';
-    ctx.shadowBlur = 3;
-    ctx.fillText(f.text, f.x, f.y);
+    const scale = f.big ? 3 : 2;
+    const str = String(f.text);
+    const textW = str.length * 4 * scale;
+    drawPixelText(str, f.x - textW / 2, f.y, f.color, scale);
   }
-  ctx.restore();
+  ctx.globalAlpha = 1;
 
-  // Hint text when no monsters
-  if (monsters.length === 0 && chestDrops.length === 0 && gameTime < 3) {
-    ctx.save();
-    ctx.globalAlpha = 0.4 + Math.sin(gameTime * 3) * 0.2;
-    ctx.fillStyle = '#aac';
-    ctx.textAlign = 'center';
-    ctx.font = '10px "Courier New", monospace';
-    ctx.fillText('等待怪物出现...', canvas.width / 2, canvas.height * 0.25);
-    ctx.restore();
+  // ---------- HUD: gold above cat ----------
+  drawHUD(catDrawX, catDrawY);
+
+  // ---------- MODAL ----------
+  if (modalOpen) drawModal();
+}
+
+// ============================================================
+// DRAW GRASS
+// ============================================================
+function drawGrass(y) {
+  const W = canvas.width;
+  // Main ground line
+  ctx.fillStyle = '#3a7a3a';
+  ctx.fillRect(0, y, W, 3);
+  ctx.fillStyle = '#2a6a2a';
+  ctx.fillRect(0, y + 3, W, 5);
+
+  // Grass tufts
+  ctx.fillStyle = '#50b050';
+  for (let x = 0; x < W; x += 6 + Math.sin(x * 0.3) * 2) {
+    const h = 3 + Math.sin(x * 0.7 + 1) * 2;
+    ctx.fillRect(x, y - h, 2, h);
+  }
+  ctx.fillStyle = '#40a040';
+  for (let x = 3; x < W; x += 8 + Math.cos(x * 0.2) * 3) {
+    const h = 2 + Math.cos(x * 0.5) * 2;
+    ctx.fillRect(x, y - h, 2, h);
+  }
+}
+
+// ============================================================
+// DRAW HUD (above cat)
+// ============================================================
+function drawHUD(catX, catY) {
+  const hudX = catX - 5;
+  const hudY = catY - 22;
+
+  // Semi-transparent bubble
+  const goldStr = String(S.gold);
+  const killStr = String(S.kills);
+  const totalW = (goldStr.length + killStr.length + 4) * 8 + 24;
+
+  ctx.globalAlpha = 0.5;
+  ctx.fillStyle = '#1a1a2e';
+  const rx = hudX - 4;
+  const ry = hudY - 3;
+  const rw = totalW;
+  const rh = 16;
+  roundRect(rx, ry, rw, rh, 4);
+  ctx.globalAlpha = 1;
+
+  // Gold coin icon (small yellow square)
+  ctx.fillStyle = '#f0c040';
+  ctx.fillRect(hudX, hudY, 6, 6);
+  ctx.fillStyle = '#d0a030';
+  ctx.fillRect(hudX + 2, hudY + 2, 2, 2);
+
+  // Gold number
+  drawPixelText(goldStr, hudX + 10, hudY, '#f0c040', 1.5);
+
+  // Kill icon (skull)
+  const kx = hudX + 10 + goldStr.length * 6 + 10;
+  ctx.fillStyle = '#c0c0c0';
+  ctx.fillRect(kx, hudY, 5, 4);
+  ctx.fillStyle = '#1a1a2e';
+  ctx.fillRect(kx + 1, hudY + 1, 1, 1);
+  ctx.fillRect(kx + 3, hudY + 1, 1, 1);
+
+  drawPixelText(killStr, kx + 8, hudY, '#c0c0c0', 1.5);
+}
+
+function roundRect(x, y, w, h, r) {
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.lineTo(x + w - r, y);
+  ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+  ctx.lineTo(x + w, y + h - r);
+  ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+  ctx.lineTo(x + r, y + h);
+  ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+  ctx.lineTo(x, y + r);
+  ctx.quadraticCurveTo(x, y, x + r, y);
+  ctx.closePath();
+  ctx.fill();
+}
+
+// ============================================================
+// DRAW MODAL (Backpack / Shop)
+// ============================================================
+function drawModal() {
+  const W = canvas.width;
+  const H = canvas.height;
+  const mw = Math.min(300, W - 40);
+  const mh = Math.min(260, H - 20);
+  const mx = (W - mw) / 2;
+  const my = (H - mh) / 2;
+
+  // Dim background
+  ctx.globalAlpha = 0.6;
+  ctx.fillStyle = '#000000';
+  ctx.fillRect(0, 0, W, H);
+  ctx.globalAlpha = 1;
+
+  // Panel
+  ctx.fillStyle = '#1a1a3a';
+  roundRect(mx, my, mw, mh, 6);
+  ctx.strokeStyle = '#4040a0';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  roundRectPath(mx, my, mw, mh, 6);
+  ctx.stroke();
+
+  if (modalOpen === 'backpack') drawBackpackModal(mx, my, mw, mh);
+  else if (modalOpen === 'shop') drawShopModal(mx, my, mw, mh);
+}
+
+function roundRectPath(x, y, w, h, r) {
+  ctx.moveTo(x + r, y);
+  ctx.lineTo(x + w - r, y);
+  ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+  ctx.lineTo(x + w, y + h - r);
+  ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+  ctx.lineTo(x + r, y + h);
+  ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+  ctx.lineTo(x, y + r);
+  ctx.quadraticCurveTo(x, y, x + r, y);
+}
+
+function drawBackpackModal(mx, my, mw, mh) {
+  // Title
+  ctx.fillStyle = '#f0c040';
+  ctx.font = 'bold 14px monospace';
+  ctx.textAlign = 'center';
+  ctx.fillText('背 包', mx + mw / 2, my + 24);
+
+  const chestData = [
+    { key: 'normal', label: '普通宝箱', color: '#c0a060' },
+    { key: 'rare',   label: '稀有宝箱', color: '#60a0e0' },
+    { key: 'epic',   label: '史诗宝箱', color: '#b070e0' },
+  ];
+
+  ctx.textAlign = 'left';
+  ctx.font = '12px monospace';
+  let cy = my + 50;
+  for (const cd of chestData) {
+    ctx.fillStyle = cd.color;
+    ctx.fillRect(mx + 20, cy - 4, 10, 10);
+    ctx.fillStyle = '#cccccc';
+    ctx.fillText(cd.label, mx + 36, cy + 5);
+    ctx.fillStyle = '#ffffff';
+    ctx.textAlign = 'right';
+    ctx.fillText('x' + S.chests[cd.key], mx + mw - 20, cy + 5);
+    ctx.textAlign = 'left';
+    cy += 26;
+  }
+
+  // Open all button
+  const total = S.chests.normal + S.chests.rare + S.chests.epic;
+  cy += 10;
+  const btnW = 120, btnH = 24;
+  const btnX = mx + (mw - btnW) / 2;
+  ctx.fillStyle = total > 0 ? '#604020' : '#333333';
+  roundRect(btnX, cy, btnW, btnH, 4);
+  ctx.strokeStyle = total > 0 ? '#f0c040' : '#555555';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  roundRectPath(btnX, cy, btnW, btnH, 4);
+  ctx.stroke();
+  ctx.fillStyle = total > 0 ? '#f0c040' : '#666666';
+  ctx.textAlign = 'center';
+  ctx.font = '11px monospace';
+  ctx.fillText('一键全开 (' + total + ')', mx + mw / 2, cy + 16);
+
+  // Store button area for click handling
+  modalBtns = [{ x: btnX, y: cy, w: btnW, h: btnH, action: 'open-all' }];
+
+  // Equipment count
+  cy += 40;
+  ctx.fillStyle = '#888888';
+  ctx.font = '10px monospace';
+  ctx.textAlign = 'center';
+  ctx.fillText('点击窗口外关闭', mx + mw / 2, my + mh - 12);
+  ctx.textAlign = 'left';
+}
+
+function drawShopModal(mx, my, mw, mh) {
+  ctx.fillStyle = '#f0c040';
+  ctx.font = 'bold 14px monospace';
+  ctx.textAlign = 'center';
+  ctx.fillText('商 城', mx + mw / 2, my + 24);
+
+  ctx.fillStyle = '#aaaacc';
+  ctx.font = '10px monospace';
+  ctx.fillText('金币: ' + S.gold, mx + mw / 2, my + 40);
+
+  // Weapons
+  ctx.textAlign = 'left';
+  ctx.fillStyle = '#f0c040';
+  ctx.font = '11px monospace';
+  let cy = my + 58;
+  ctx.fillText('武器', mx + 20, cy);
+  cy += 18;
+
+  for (const [id, w] of Object.entries(WEAPONS)) {
+    const owned = S.ownedWeapons.includes(id);
+    const equipped = S.weapon === id;
+    ctx.fillStyle = equipped ? '#f0c040' : owned ? '#88aa88' : '#cccccc';
+    ctx.fillText(w.name + ' (攻:' + w.atk + ')', mx + 20, cy);
+    ctx.textAlign = 'right';
+    if (equipped) {
+      ctx.fillStyle = '#40e040';
+      ctx.fillText('装备中', mx + mw - 20, cy);
+    } else if (owned) {
+      ctx.fillStyle = '#60a0e0';
+      ctx.fillText('已拥有', mx + mw - 20, cy);
+    } else {
+      ctx.fillStyle = S.gold >= w.cost ? '#f0c040' : '#666666';
+      ctx.fillText(w.cost + '金', mx + mw - 20, cy);
+    }
+    ctx.textAlign = 'left';
+    cy += 18;
+  }
+
+  // Costumes
+  cy += 6;
+  ctx.fillStyle = '#f0c040';
+  ctx.fillText('装扮', mx + 20, cy);
+  cy += 18;
+
+  for (const [id, c] of Object.entries(COSTUMES)) {
+    const owned = S.ownedCostumes.includes(id);
+    const equipped = S.costume === id;
+    ctx.fillStyle = c.body;
+    ctx.fillRect(mx + 20, cy - 8, 8, 8);
+    ctx.fillStyle = equipped ? '#f0c040' : owned ? '#88aa88' : '#cccccc';
+    ctx.fillText(c.name, mx + 34, cy);
+    ctx.textAlign = 'right';
+    if (equipped) {
+      ctx.fillStyle = '#40e040';
+      ctx.fillText('装备中', mx + mw - 20, cy);
+    } else if (owned) {
+      ctx.fillStyle = '#60a0e0';
+      ctx.fillText('已拥有', mx + mw - 20, cy);
+    } else {
+      ctx.fillStyle = S.gold >= c.cost ? '#f0c040' : '#666666';
+      ctx.fillText(c.cost + '金', mx + mw - 20, cy);
+    }
+    ctx.textAlign = 'left';
+    cy += 18;
+  }
+
+  ctx.fillStyle = '#888888';
+  ctx.font = '10px monospace';
+  ctx.textAlign = 'center';
+  ctx.fillText('点击窗口外关闭', mx + mw / 2, my + mh - 12);
+  ctx.textAlign = 'left';
+}
+
+let modalBtns = [];
+
+// Modal click handling
+canvas.addEventListener('click', function modalClick(e) {
+  if (!modalOpen) return;
+
+  const mx = e.clientX;
+  const my = e.clientY;
+
+  // Check modal buttons
+  for (const btn of modalBtns) {
+    if (mx >= btn.x && mx <= btn.x + btn.w && my >= btn.y && my <= btn.y + btn.h) {
+      if (btn.action === 'open-all') {
+        openAllChests();
+      }
+      return;
+    }
+  }
+
+  // Shop item clicks
+  if (modalOpen === 'shop') {
+    handleShopClick(mx, my);
+  }
+});
+
+function openAllChests() {
+  let goldGained = 0;
+  for (const type of ['normal', 'rare', 'epic']) {
+    const cnt = S.chests[type];
+    for (let i = 0; i < cnt; i++) {
+      goldGained += rollGold(type);
+    }
+    S.chests[type] = 0;
+  }
+  if (goldGained > 0) {
+    S.gold += goldGained;
+    addText(canvas.width / 2, canvas.height / 2 - 40, '+' + goldGained, '#f0c040', true);
+    burst(canvas.width / 2, canvas.height / 2, '#f0c040', 20);
+    save();
+  }
+}
+
+function rollGold(type) {
+  if (type === 'epic') return 50 + Math.floor(Math.random() * 100);
+  if (type === 'rare') return 15 + Math.floor(Math.random() * 35);
+  return 3 + Math.floor(Math.random() * 12);
+}
+
+function handleShopClick(cx, cy) {
+  const W = canvas.width;
+  const H = canvas.height;
+  const mw = Math.min(300, W - 40);
+  const mh = Math.min(260, H - 20);
+  const mx = (W - mw) / 2;
+  const my = (H - mh) / 2;
+
+  // Determine which row was clicked based on y position
+  let rowY = my + 58 + 18; // first weapon row
+  const weaponIds = Object.keys(WEAPONS);
+  for (const id of weaponIds) {
+    if (cy >= rowY - 14 && cy < rowY + 4) {
+      const w = WEAPONS[id];
+      const owned = S.ownedWeapons.includes(id);
+      if (owned && S.weapon !== id) {
+        S.weapon = id; save(); return;
+      }
+      if (!owned && S.gold >= w.cost) {
+        S.gold -= w.cost;
+        S.ownedWeapons.push(id);
+        S.weapon = id;
+        save(); return;
+      }
+    }
+    rowY += 18;
+  }
+
+  rowY += 6 + 18; // skip "装扮" header
+  const costumeIds = Object.keys(COSTUMES);
+  for (const id of costumeIds) {
+    if (cy >= rowY - 14 && cy < rowY + 4) {
+      const c = COSTUMES[id];
+      const owned = S.ownedCostumes.includes(id);
+      if (owned && S.costume !== id) {
+        S.costume = id; save(); return;
+      }
+      if (!owned && S.gold >= c.cost) {
+        S.gold -= c.cost;
+        S.ownedCostumes.push(id);
+        S.costume = id;
+        save(); return;
+      }
+    }
+    rowY += 18;
   }
 }
 
 // ============================================================
 // MAIN LOOP
 // ============================================================
-function gameLoop(now) {
+function loop(now) {
   const dt = Math.min((now - lastTime) / 1000, 0.1);
   lastTime = now;
 
-  if (!openModal) update(dt);
+  if (visible && !modalOpen) update(dt);
   draw();
-  updateUI();
 
-  requestAnimationFrame(gameLoop);
+  requestAnimationFrame(loop);
 }
-requestAnimationFrame(gameLoop);
+requestAnimationFrame(loop);
+
+// Initial spawn after 1s
+setTimeout(() => { spawnMonster(); lastSpawn = 0; }, 1000);
 
 // ============================================================
-// UI UPDATES
+// TAURI EVENT LISTENERS
 // ============================================================
-function updateUI() {
-  document.getElementById('st-gold').textContent = state.gold;
-  document.getElementById('st-score').textContent = state.score;
-  document.getElementById('st-kills').textContent = state.kills;
-  document.getElementById('st-level').textContent = state.level;
-}
+if (window.__TAURI__) {
+  const { listen } = window.__TAURI__.event;
 
-// ============================================================
-// MODALS
-// ============================================================
-function showModal(id) {
-  openModal = id;
-  document.getElementById(id).classList.add('show');
-  if (id === 'modal-bag') renderBag();
-  if (id === 'modal-shop') renderShop();
-  if (id === 'modal-settings') renderSettings();
-}
-function hideModal(id) {
-  openModal = null;
-  document.getElementById(id).classList.remove('show');
-}
+  listen('toggle-visibility', () => {
+    visible = !visible;
+    document.body.style.opacity = visible ? '1' : '0';
+  });
 
-// Close buttons
-document.querySelectorAll('.modal-close').forEach(el => {
-  el.addEventListener('click', () => hideModal(el.dataset.close));
-});
+  listen('open-backpack', () => {
+    modalOpen = modalOpen === 'backpack' ? null : 'backpack';
+  });
 
-document.getElementById('btn-bag').addEventListener('click', () => showModal('modal-bag'));
-document.getElementById('btn-shop').addEventListener('click', () => showModal('modal-shop'));
-document.getElementById('btn-settings').addEventListener('click', () => showModal('modal-settings'));
+  listen('open-shop', () => {
+    modalOpen = modalOpen === 'shop' ? null : 'shop';
+  });
 
-// ============================================================
-// BAG
-// ============================================================
-function renderBag() {
-  const el = document.getElementById('bag-content');
-  const chestNames = { normal: '普通宝箱', rare: '稀有宝箱', epic: '史诗宝箱' };
-  const chestColors = { normal: '#c0a060', rare: '#60a0e0', epic: '#b070e0' };
-  const totalChests = state.chests.normal + state.chests.rare + state.chests.epic;
-
-  let html = '<h3>◈ 背包 ◈</h3>';
-  html += '<div class="loot-msg" id="loot-msg"></div>';
-
-  for (const type of ['normal', 'rare', 'epic']) {
-    html += `<div class="chest-row">
-      <span style="color:${chestColors[type]}">■</span>
-      <span>${chestNames[type]}</span>
-      <span class="cnt">${state.chests[type]}</span>
-    </div>`;
-  }
-
-  html += `<button class="open-all-btn" id="open-all" ${totalChests === 0 ? 'disabled' : ''}>一键全开 (${totalChests})</button>`;
-
-  if (state.equipment.length > 0) {
-    html += '<div class="equip-list"><div style="color:#f0c040;margin-bottom:4px;">已获得装备:</div>';
-    const counts = {};
-    state.equipment.forEach(e => { counts[e] = (counts[e] || 0) + 1; });
-    for (const [name, cnt] of Object.entries(counts)) {
-      html += `<div>· ${name} x${cnt}</div>`;
-    }
-    html += '</div>';
-  }
-
-  el.innerHTML = html;
-
-  document.getElementById('open-all')?.addEventListener('click', openAllChests);
-}
-
-function openAllChests() {
-  let goldGained = 0;
-  const equipGained = [];
-
-  for (const type of ['normal', 'rare', 'epic']) {
-    const cnt = state.chests[type];
-    for (let i = 0; i < cnt; i++) {
-      const loot = rollChestLoot(type);
-      if (loot.gold) goldGained += loot.gold;
-      if (loot.equip) equipGained.push(loot.equip);
-    }
-    state.chests[type] = 0;
-  }
-
-  state.gold += goldGained;
-  for (const e of equipGained) state.equipment.push(e);
-  saveState();
-
-  let msg = '';
-  if (goldGained > 0) msg += `+${goldGained} 金币`;
-  if (equipGained.length > 0) msg += (msg ? '，' : '') + equipGained.join('、');
-  if (!msg) msg = '没有宝箱可开';
-
-  renderBag();
-  const lootEl = document.getElementById('loot-msg');
-  if (lootEl) lootEl.textContent = msg;
-}
-
-function rollChestLoot(type) {
-  const r = Math.random();
-  if (type === 'epic') {
-    if (r < 0.3) return { gold: 100 + Math.floor(Math.random() * 200) };
-    return { equip: randomEquipName('epic'), gold: 50 };
-  } else if (type === 'rare') {
-    if (r < 0.5) return { gold: 30 + Math.floor(Math.random() * 70) };
-    return { equip: randomEquipName('rare'), gold: 20 };
-  } else {
-    if (r < 0.6) return { gold: 5 + Math.floor(Math.random() * 20) };
-    return { equip: randomEquipName('normal'), gold: 5 };
-  }
-}
-
-function randomEquipName(tier) {
-  const equips = {
-    normal: ['铜戒指', '皮护腕', '布头巾', '木盾'],
-    rare: ['银项链', '铁护甲', '钢靴', '红宝石'],
-    epic: ['暗金之冠', '龙鳞披风', '虹光之戒', '永恒水晶'],
-  };
-  const list = equips[tier];
-  return list[Math.floor(Math.random() * list.length)];
-}
-
-// ============================================================
-// SHOP
-// ============================================================
-function renderShop() {
-  const el = document.getElementById('shop-content');
-  let html = '<h3>◈ 商城 ◈</h3>';
-  html += '<div style="font-size:10px;color:#aac;text-align:center;margin-bottom:8px;">当前积分: <span style="color:#f0c040">' + state.score + '</span></div>';
-
-  html += '<div style="font-size:10px;color:#f0c040;margin:8px 0 4px;">武器</div>';
-  for (const [id, w] of Object.entries(WEAPONS)) {
-    const owned = state.ownedWeapons.includes(id);
-    const equipped = state.weapon === id;
-    const canBuy = !owned && state.score >= w.cost;
-    html += `<div class="item-row">
-      <span class="name" style="color:${w.effColor}">${w.name} (攻击:${w.atk})</span>
-      ${!owned ? `<span class="cost">${w.cost}积分</span><button ${canBuy ? '' : 'disabled'} onclick="buyWeapon('${id}')">购买</button>` : ''}
-      ${owned && !equipped ? `<button onclick="equipWeapon('${id}')">装备</button>` : ''}
-      ${equipped ? '<span class="equipped">✓ 已装备</span>' : ''}
-    </div>`;
-  }
-
-  html += '<div style="font-size:10px;color:#f0c040;margin:12px 0 4px;">装扮</div>';
-  for (const [id, c] of Object.entries(COSTUMES)) {
-    const owned = state.ownedCostumes.includes(id);
-    const equipped = state.costume === id;
-    const canBuy = !owned && state.score >= c.cost;
-    html += `<div class="item-row">
-      <span class="name"><span style="color:${c.bodyColor}">■</span> ${c.name}</span>
-      ${!owned ? `<span class="cost">${c.cost}积分</span><button ${canBuy ? '' : 'disabled'} onclick="buyCostume('${id}')">购买</button>` : ''}
-      ${owned && !equipped ? `<button onclick="equipCostume('${id}')">装备</button>` : ''}
-      ${equipped ? '<span class="equipped">✓ 已装备</span>' : ''}
-    </div>`;
-  }
-
-  el.innerHTML = html;
-}
-
-// Shop global functions
-window.buyWeapon = function(id) {
-  const w = WEAPONS[id];
-  if (state.score >= w.cost && !state.ownedWeapons.includes(id)) {
-    state.score -= w.cost;
-    state.ownedWeapons.push(id);
-    state.weapon = id;
-    saveState();
-    renderShop();
-  }
-};
-window.equipWeapon = function(id) {
-  if (state.ownedWeapons.includes(id)) {
-    state.weapon = id;
-    saveState();
-    renderShop();
-  }
-};
-window.buyCostume = function(id) {
-  const c = COSTUMES[id];
-  if (state.score >= c.cost && !state.ownedCostumes.includes(id)) {
-    state.score -= c.cost;
-    state.ownedCostumes.push(id);
-    state.costume = id;
-    saveState();
-    renderShop();
-  }
-};
-window.equipCostume = function(id) {
-  if (state.ownedCostumes.includes(id)) {
-    state.costume = id;
-    saveState();
-    renderShop();
-  }
-};
-
-// ============================================================
-// SETTINGS
-// ============================================================
-function renderSettings() {
-  const el = document.getElementById('settings-content');
-  el.innerHTML = `
-    <h3>◈ 设置 ◈</h3>
-    <button class="reset-btn" id="reset-save">重置存档</button>
-    <div class="about">
-      <div>BondCat v1.0</div>
-      <div>8-bit 像素桌面挂件</div>
-      <div style="margin-top:6px;color:#666;">Tauri + Canvas</div>
-    </div>
-  `;
-  document.getElementById('reset-save').addEventListener('click', () => {
-    if (confirm('确定要重置所有存档？')) {
-      resetState();
-      monsters = [];
-      chestDrops = [];
-      particles = [];
-      floatingTexts = [];
-      hideModal('modal-settings');
-    }
+  listen('reset-data', () => {
+    S = JSON.parse(JSON.stringify(DEF));
+    S.chests = { normal: 0, rare: 0, epic: 0 };
+    S.ownedWeapons = ['fist'];
+    S.ownedCostumes = ['default'];
+    monsters = [];
+    chests = [];
+    particles = [];
+    floatTexts = [];
+    save();
   });
 }
-
-// ============================================================
-// TAURI WINDOW CONTROLS
-// ============================================================
-document.getElementById('btn-min').addEventListener('click', async () => {
-  try {
-    const { getCurrentWindow } = window.__TAURI__.window;
-    await getCurrentWindow().minimize();
-  } catch(e) { console.log('Tauri minimize not available'); }
-});
-document.getElementById('btn-close').addEventListener('click', async () => {
-  try {
-    const { getCurrentWindow } = window.__TAURI__.window;
-    await getCurrentWindow().close();
-  } catch(e) { window.close(); }
-});
-
-// ============================================================
-// INITIAL SPAWN
-// ============================================================
-setTimeout(() => { spawnMonster(); lastSpawnTime = gameTime * 1000; }, 1500);
 </script>
 </body>
 </html>
