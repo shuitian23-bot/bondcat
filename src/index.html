@@ -256,9 +256,7 @@ function drawBackground(t) {
   // Rounded clip for entire canvas
   roundRect(0, 0, W, H, 12);
   ctx.clip();
-  // Semi-transparent dark bg (fallback for when system transparency doesn't work)
-  ctx.fillStyle = 'rgba(15,15,30,0.85)';
-  ctx.fillRect(0, 0, W, H);
+  // No background - fully transparent (only sprites visible)
   // Stars
   for (const s of stars) {
     const alpha = 0.4 + 0.4 * Math.sin(t * 1.5 + s.blink);

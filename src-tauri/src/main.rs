@@ -6,8 +6,10 @@ use tauri::{
     Emitter, Manager,
 };
 use std::thread;
-use std::sync::atomic::{AtomicU64, Ordering};
-use std::time::{SystemTime, UNIX_EPOCH};
+use std::panic;
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::Arc;
+use std::time::Duration;
 
 fn main() {
     tauri::Builder::default()
@@ -55,33 +57,38 @@ fn main() {
                 })
                 .build(app)?;
 
-            // Global keyboard/mouse listener (throttled)
-            let app_handle = app.handle().clone();
+            // Global input: rdev sets flag, polling thread emits
+            let input_flag = Arc::new(AtomicBool::new(false));
+            let flag_writer = input_flag.clone();
+
+            // rdev listener thread - only sets atomic flag, never calls Tauri APIs
             thread::spawn(move || {
-                use rdev::{listen, Event, EventType};
-                static LAST_EMIT: AtomicU64 = AtomicU64::new(0);
-                let callback = move |event: Event| {
-                    let dominated = match event.event_type {
-                        EventType::KeyPress(_) | EventType::ButtonPress(_) => true,
-                        EventType::MouseMove { .. } => {
-                            // Throttle mouse move to 1 per 500ms
-                            let now = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_millis() as u64;
-                            let last = LAST_EMIT.load(Ordering::Relaxed);
-                            if now - last > 500 {
-                                LAST_EMIT.store(now, Ordering::Relaxed);
-                                true
-                            } else {
-                                false
+                let result = panic::catch_unwind(|| {
+                    use rdev::{listen, Event, EventType};
+                    let flag = flag_writer;
+                    let _ = listen(move |event: Event| {
+                        match event.event_type {
+                            EventType::KeyPress(_) | EventType::ButtonPress(_) | EventType::MouseMove { .. } => {
+                                flag.store(true, Ordering::Relaxed);
                             }
+                            _ => {}
                         }
-                        _ => false,
-                    };
-                    if dominated {
+                    });
+                });
+                if result.is_err() {
+                    eprintln!("rdev listener failed - no accessibility permission");
+                }
+            });
+
+            // Polling thread - reads flag, emits to frontend (safe thread)
+            let app_handle = app.handle().clone();
+            let flag_reader = input_flag;
+            thread::spawn(move || {
+                loop {
+                    thread::sleep(Duration::from_millis(200));
+                    if flag_reader.swap(false, Ordering::Relaxed) {
                         let _ = app_handle.emit("global-input", ());
                     }
-                };
-                if let Err(error) = listen(callback) {
-                    eprintln!("Global listener error: {:?}", error);
                 }
             });
 
