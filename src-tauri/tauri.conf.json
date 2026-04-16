@@ -1,6 +1,5 @@
 {
-  "$schema": "https://raw.githubusercontent.com/nicmr/tauri-schema/refs/heads/main/tauri.conf.json",
-  "productName": "像素邦德小猫",
+  "productName": "BondCat",
   "version": "0.1.0",
   "identifier": "com.baiyubot.bondcat",
   "build": {

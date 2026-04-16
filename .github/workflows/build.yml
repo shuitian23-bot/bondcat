@@ -6,6 +6,9 @@ on:
       - 'v*'
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
   build:
     strategy:
@@ -41,22 +44,16 @@ jobs:
         with:
           workspaces: src-tauri
 
-      - name: Install dependencies (macOS)
-        if: runner.os == 'macOS'
-        run: npm install
-
-      - name: Install dependencies (Windows)
-        if: runner.os == 'Windows'
+      - name: Install dependencies
         run: npm install
 
       - name: Build Tauri app
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          TAURI_SIGNING_PRIVATE_KEY: ""
         with:
           tagName: ${{ github.ref_name }}
-          releaseName: "像素邦德小猫 ${{ github.ref_name }}"
+          releaseName: "BondCat ${{ github.ref_name }}"
           releaseBody: "像素邦德小猫·敲敲打宝桌面版"
           releaseDraft: true
           prerelease: false
