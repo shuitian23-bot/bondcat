@@ -52,18 +52,6 @@ fn main() {
                 })
                 .build(app)?;
 
-            // Position window at bottom of screen
-            let window = app.get_webview_window("main").unwrap();
-            if let Ok(Some(monitor)) = window.current_monitor() {
-                let screen = monitor.size();
-                let scale = monitor.scale_factor();
-                let w = (screen.width as f64 / scale) as i32;
-                let h = 200;
-                let y = (screen.height as f64 / scale) as i32 - h - 80;
-                let _ = window.set_size(tauri::LogicalSize::new(w as f64, h as f64));
-                let _ = window.set_position(tauri::LogicalPosition::new(0.0, y as f64));
-            }
-
             Ok(())
         })
         .run(tauri::generate_context!())

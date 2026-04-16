@@ -12,17 +12,15 @@
       {
         "label": "main",
         "title": "BondCat",
-        "width": 1200,
-        "height": 200,
-        "x": 100,
-        "y": 700,
+        "width": 500,
+        "height": 300,
         "resizable": false,
-        "transparent": true,
+        "transparent": false,
         "decorations": false,
         "alwaysOnTop": true,
         "skipTaskbar": true,
-        "shadow": false,
-        "visible": true
+        "shadow": true,
+        "center": true
       }
     ],
     "security": {
