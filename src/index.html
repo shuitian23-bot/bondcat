@@ -256,7 +256,12 @@ function drawBackground(t) {
   // Rounded clip for entire canvas
   roundRect(0, 0, W, H, 12);
   ctx.clip();
-  // No background - fully transparent (only sprites visible)
+  // Thin semi-transparent top bar (drag handle + HUD area)
+  ctx.fillStyle = "rgba(15,15,30,0.7)";
+  ctx.fillRect(0, 0, W, 28);
+  // Thin bottom ground strip with slight transparency
+  ctx.fillStyle = "rgba(15,25,15,0.6)";
+  ctx.fillRect(0, GROUND_Y - 10, W, 18);
   // Stars
   for (const s of stars) {
     const alpha = 0.4 + 0.4 * Math.sin(t * 1.5 + s.blink);
@@ -387,6 +392,12 @@ function drawHUD() {
   ctx.fillRect(148, 12, 20, 6);
   ctx.fillStyle = '#44aaff';
   ctx.fillRect(148, 12, 20 * xpRatio, 6);
+  // Drag hint (right side of top bar)
+  ctx.fillStyle = 'rgba(255,255,255,0.3)';
+  ctx.font = '10px monospace';
+  ctx.textAlign = 'right';
+  ctx.fillText('☰ 拖拽移动', W - 10, 18);
+  ctx.textAlign = 'left';
   ctx.restore();
 }
 
