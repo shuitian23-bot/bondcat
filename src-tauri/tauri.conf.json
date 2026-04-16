@@ -1,6 +1,6 @@
 {
   "productName": "BondCat",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "identifier": "com.baiyubot.bondcat",
   "build": {
     "frontendDist": "../src",
@@ -8,18 +8,20 @@
   },
   "app": {
     "withGlobalTauri": true,
+    "macOSPrivateApi": true,
     "windows": [
       {
         "label": "main",
         "title": "BondCat",
-        "width": 500,
-        "height": 300,
+        "width": 600,
+        "height": 200,
         "resizable": false,
-        "transparent": false,
+        "transparent": true,
         "decorations": false,
         "alwaysOnTop": true,
         "skipTaskbar": true,
-        "shadow": true,
+        "shadow": false,
+        "visible": true,
         "center": true
       }
     ],
