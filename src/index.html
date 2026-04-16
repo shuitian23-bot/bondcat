@@ -771,9 +771,6 @@ canvas.addEventListener('click', (e) => {
 // Keep focus
 canvas.setAttribute('tabindex', '0');
 canvas.focus();
-window.addEventListener('blur', () => {
-  setTimeout(() => canvas.focus(), 100);
-});
 
 // ==================== MODAL ====================
 function openModal(type) {
@@ -916,8 +913,12 @@ if (window.__TAURI__) {
 
 // ==================== GAME LOOP ====================
 function gameLoop() {
-  update();
-  draw();
+  try {
+    update();
+    draw();
+  } catch(e) {
+    console.error("Game error:", e);
+  }
   requestAnimationFrame(gameLoop);
 }
 
