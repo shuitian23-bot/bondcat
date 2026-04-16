@@ -7,7 +7,66 @@ use tauri::{
 };
 use std::thread;
 use std::time::Duration;
-use device_query::{DeviceQuery, DeviceState, Keycode, MouseState};
+use std::ffi::c_void;
+use std::sync::atomic::{AtomicU64, Ordering};
+
+// ---- macOS CoreGraphics Event Tap (global input monitoring) ----
+#[cfg(target_os = "macos")]
+mod macos {
+    use std::ffi::c_void;
+
+    pub type CGEventRef = *mut c_void;
+    pub type CGEventMask = u64;
+    pub type CGEventType = u32;
+
+    pub const KEY_DOWN: CGEventType = 10;
+    pub const MOUSE_MOVED: CGEventType = 5;
+    pub const LEFT_MOUSE_DOWN: CGEventType = 1;
+    pub const RIGHT_MOUSE_DOWN: CGEventType = 3;
+    pub const OTHER_MOUSE_DOWN: CGEventType = 25;
+
+    pub fn mask_bit(t: CGEventType) -> CGEventMask { 1u64 << (t as u64) }
+
+    pub type TapCallback = unsafe extern "C" fn(
+        *mut c_void, CGEventType, CGEventRef, *mut c_void
+    ) -> CGEventRef;
+
+    #[link(name = "CoreGraphics", kind = "framework")]
+    extern "C" {
+        pub fn CGEventTapCreate(
+            tap: u32, place: u32, options: u32,
+            events_of_interest: CGEventMask,
+            callback: TapCallback, user_info: *mut c_void,
+        ) -> *mut c_void;
+    }
+
+    #[link(name = "CoreFoundation", kind = "framework")]
+    extern "C" {
+        pub fn CFMachPortCreateRunLoopSource(
+            allocator: *const c_void, port: *mut c_void, order: i64,
+        ) -> *mut c_void;
+        pub fn CFRunLoopGetCurrent() -> *mut c_void;
+        pub fn CFRunLoopAddSource(rl: *mut c_void, source: *mut c_void, mode: *const c_void);
+        pub fn CFRunLoopRun();
+        pub static kCFRunLoopCommonModes: *const c_void;
+    }
+
+    #[link(name = "ApplicationServices", kind = "framework")]
+    extern "C" {
+        pub fn AXIsProcessTrusted() -> bool;
+    }
+}
+
+static INPUT_COUNTER: AtomicU64 = AtomicU64::new(0);
+
+#[cfg(target_os = "macos")]
+unsafe extern "C" fn on_event(
+    _proxy: *mut c_void, _etype: macos::CGEventType,
+    event: macos::CGEventRef, _info: *mut c_void,
+) -> macos::CGEventRef {
+    INPUT_COUNTER.fetch_add(1, Ordering::Relaxed);
+    event
+}
 
 fn main() {
     tauri::Builder::default()
@@ -18,7 +77,6 @@ fn main() {
             let shop = MenuItem::with_id(app, "shop", "商城", true, None::<&str>)?;
             let reset = MenuItem::with_id(app, "reset", "重置存档", true, None::<&str>)?;
             let quit = MenuItem::with_id(app, "quit", "退出", true, None::<&str>)?;
-
             let menu = Menu::with_items(app, &[&show, &backpack, &shop, &reset, &quit])?;
 
             TrayIconBuilder::new()
@@ -36,20 +94,10 @@ fn main() {
                                 let _ = window.set_focus();
                             }
                         }
-                        "backpack" => {
-                            let _ = window.show();
-                            let _ = app.emit("open-backpack", ());
-                        }
-                        "shop" => {
-                            let _ = window.show();
-                            let _ = app.emit("open-shop", ());
-                        }
-                        "reset" => {
-                            let _ = app.emit("reset-data", ());
-                        }
-                        "quit" => {
-                            app.exit(0);
-                        }
+                        "backpack" => { let _ = window.show(); let _ = app.emit("open-backpack", ()); }
+                        "shop" => { let _ = window.show(); let _ = app.emit("open-shop", ()); }
+                        "reset" => { let _ = app.emit("reset-data", ()); }
+                        "quit" => { app.exit(0); }
                         _ => {}
                     }
                 })
@@ -67,60 +115,63 @@ fn main() {
                 let _ = window.set_position(tauri::LogicalPosition::new(x as f64, y as f64));
             }
 
-            // Global input polling with device_query
-            let app_handle = app.handle().clone();
-            thread::spawn(move || {
-                let device = DeviceState::new();
-                let mut prev_keys: Vec<Keycode> = vec![];
-                let mut prev_mouse_x: i32 = 0;
-                let mut prev_mouse_y: i32 = 0;
-                let mut prev_buttons: Vec<bool> = vec![];
-                
-                loop {
-                    thread::sleep(Duration::from_millis(30));
+            // ---- Global input via CGEventTap ----
+            #[cfg(target_os = "macos")]
+            {
+                let trusted = unsafe { macos::AXIsProcessTrusted() };
+                let app_handle = app.handle().clone();
 
-                    let mut triggered = false;
+                if !trusted {
+                    let h = app.handle().clone();
+                    thread::spawn(move || {
+                        thread::sleep(Duration::from_millis(500));
+                        let _ = h.emit("accessibility-needed", ());
+                    });
+                }
 
-                    // Check keyboard - detect ANY new key not in previous set
-                    let keys = device.get_keys();
-                    for key in &keys {
-                        if !prev_keys.contains(key) {
-                            triggered = true;
-                            break;
+                thread::spawn(move || {
+                    unsafe {
+                        let mask = macos::mask_bit(macos::KEY_DOWN)
+                            | macos::mask_bit(macos::MOUSE_MOVED)
+                            | macos::mask_bit(macos::LEFT_MOUSE_DOWN)
+                            | macos::mask_bit(macos::RIGHT_MOUSE_DOWN)
+                            | macos::mask_bit(macos::OTHER_MOUSE_DOWN);
+
+                        let tap = macos::CGEventTapCreate(
+                            1, 0, 1, mask, on_event, std::ptr::null_mut(),
+                        );
+
+                        if tap.is_null() {
+                            let _ = app_handle.emit("input-tap-failed", ());
+                            return;
                         }
-                    }
-                    prev_keys = keys;
 
-                    // Check mouse movement (threshold: 5px to avoid noise)
-                    if !triggered {
-                        let mouse: MouseState = device.get_mouse();
-                        let dx = (mouse.coords.0 - prev_mouse_x).abs();
-                        let dy = (mouse.coords.1 - prev_mouse_y).abs();
-                        if dx > 5 || dy > 5 {
-                            triggered = true;
-                        }
-                        prev_mouse_x = mouse.coords.0;
-                        prev_mouse_y = mouse.coords.1;
+                        let _ = app_handle.emit("input-tap-ok", ());
 
-                        // Check mouse buttons
-                        if !triggered {
-                            let cur_buttons: Vec<bool> = mouse.button_pressed.clone();
-                            let len = cur_buttons.len().min(prev_buttons.len());
-                            for i in 0..len {
-                                if cur_buttons[i] && !prev_buttons[i] {
-                                    triggered = true;
-                                    break;
+                        let source = macos::CFMachPortCreateRunLoopSource(
+                            std::ptr::null(), tap, 0,
+                        );
+                        let rl = macos::CFRunLoopGetCurrent();
+                        macos::CFRunLoopAddSource(rl, source, macos::kCFRunLoopCommonModes);
+
+                        // Poll counter → emit Tauri events
+                        let h2 = app_handle.clone();
+                        thread::spawn(move || {
+                            let mut last = 0u64;
+                            loop {
+                                thread::sleep(Duration::from_millis(30));
+                                let cur = INPUT_COUNTER.load(Ordering::Relaxed);
+                                if cur != last {
+                                    let _ = h2.emit("global-input", ());
+                                    last = cur;
                                 }
                             }
-                            prev_buttons = cur_buttons;
-                        }
-                    }
+                        });
 
-                    if triggered {
-                        let _ = app_handle.emit("global-input", ());
+                        macos::CFRunLoopRun(); // blocks
                     }
-                }
-            });
+                });
+            }
 
             Ok(())
         })

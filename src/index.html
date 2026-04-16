@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=500, height=160">
-<title>邦德猫 v0.3.3</title>
+<title>邦德猫 v0.3.4</title>
 <style>
 * { margin:0; padding:0; box-sizing:border-box; }
 body { width:500px; height:160px; overflow:hidden; background:transparent; font-family:'Segoe UI',sans-serif; user-select:none; }
@@ -46,7 +46,7 @@ canvas { display:block; }
 </head>
 <body>
 <div id="titlebar" data-tauri-drag-region>
-  <span class="title" data-tauri-drag-region>邦德猫 v0.3.3</span>
+  <span class="title" data-tauri-drag-region>邦德猫 v0.3.4</span>
   <span class="stats" id="stats" data-tauri-drag-region></span>
   <div class="btns">
     <button onclick="openModal('backpack')">📦</button>
@@ -55,6 +55,11 @@ canvas { display:block; }
   </div>
 </div>
 <canvas id="game" width="500" height="136"></canvas>
+<div id="axwarn" style="display:none;position:fixed;top:24px;left:0;width:500px;background:#cc3300;color:#fff;font-size:10px;padding:4px 8px;z-index:200;text-align:center;">
+  ⚠️ 需要辅助功能权限 <button onclick="openAxSettings()" style="background:#fff;color:#c30;border:none;padding:1px 6px;border-radius:3px;font-size:9px;cursor:pointer;margin-left:4px;">打开设置</button>
+  <span style="font-size:8px;display:block;margin-top:2px;">授权后需重启App</span>
+</div>
+
 <div id="modal"><div class="panel" id="modalContent"></div><div class="close-hint">ESC 关闭</div></div>
 
 <script>
@@ -591,6 +596,23 @@ if (window.__TAURI__) {
     const now = Date.now();
     if (now - lastGlobal > 150) { lastGlobal = now; playerAttack(); }
   });
+}
+
+// Accessibility permission
+async function openAxSettings() {
+  if (window.__TAURI__) {
+    await window.__TAURI__.shell.open('x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility');
+  }
+}
+
+if (window.__TAURI__) {
+  const { listen: listenAx } = window.__TAURI__.event;
+  listenAx('accessibility-needed', () => { document.getElementById('axwarn').style.display = 'block'; });
+  listenAx('input-tap-failed', () => {
+    const w = document.getElementById('axwarn');
+    w.style.display = 'block';
+  });
+  listenAx('input-tap-ok', () => { document.getElementById('axwarn').style.display = 'none'; });
 }
 </script>
 </body>
