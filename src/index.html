@@ -3,12 +3,12 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=500, height=160">
-<title>邦德猫 v0.3.0</title>
+<title>邦德猫 v0.3.1</title>
 <style>
 * { margin:0; padding:0; box-sizing:border-box; }
-body { width:500px; height:160px; overflow:hidden; background:#0d0d1a; font-family:'Segoe UI',sans-serif; user-select:none; }
-#titlebar {
-  height:24px; background:#13132a; display:flex; align-items:center; padding:0 6px;
+body { width:500px; height:160px; overflow:hidden; background:transparent; font-family:'Segoe UI',sans-serif; user-select:none; }
+#titlebar { border-radius: 8px 8px 0 0;
+  height:24px; background:rgba(15,15,30,0.75); display:flex; align-items:center; padding:0 6px;
   cursor:default; border-bottom:1px solid #2a2a4a;
 }
 #titlebar .title { color:#f0a040; font-size:11px; font-weight:bold; white-space:nowrap; }
@@ -46,7 +46,7 @@ canvas { display:block; }
 </head>
 <body>
 <div id="titlebar" data-tauri-drag-region>
-  <span class="title" data-tauri-drag-region>邦德猫 v0.3.0</span>
+  <span class="title" data-tauri-drag-region>邦德猫 v0.3.1</span>
   <span class="stats" id="stats" data-tauri-drag-region></span>
   <div class="btns">
     <button onclick="openModal('backpack')">📦</button>
@@ -445,12 +445,8 @@ function update(dt) {
 }
 
 function render(time) {
-  // background gradient
-  const grad = ctx.createLinearGradient(0, 0, 0, 136);
-  grad.addColorStop(0, '#0d0d1a');
-  grad.addColorStop(1, '#1a1a2e');
-  ctx.fillStyle = grad;
-  ctx.fillRect(0, 0, 500, 136);
+  // clear to transparent
+  ctx.clearRect(0, 0, 500, 136);
 
   // stars
   for (const s of stars) {
