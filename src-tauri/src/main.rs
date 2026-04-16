@@ -57,18 +57,31 @@ fn main() {
                 })
                 .build(app)?;
 
+            // Position window at bottom-center of screen
+            let window = app.get_webview_window("main").unwrap();
+            if let Ok(Some(monitor)) = window.current_monitor() {
+                let screen = monitor.size();
+                let scale = monitor.scale_factor();
+                let sw = (screen.width as f64 / scale) as i32;
+                let sh = (screen.height as f64 / scale) as i32;
+                let ww = 500;
+                let wh = 160;
+                let x = (sw - ww) / 2;
+                let y = sh - wh - 80; // above dock
+                let _ = window.set_position(tauri::LogicalPosition::new(x as f64, y as f64));
+            }
+
             // Global input: rdev sets flag, polling thread emits
             let input_flag = Arc::new(AtomicBool::new(false));
             let flag_writer = input_flag.clone();
 
-            // rdev listener thread - only sets atomic flag, never calls Tauri APIs
             thread::spawn(move || {
                 let result = panic::catch_unwind(|| {
                     use rdev::{listen, Event, EventType};
                     let flag = flag_writer;
                     let _ = listen(move |event: Event| {
                         match event.event_type {
-                            EventType::KeyPress(_) | EventType::ButtonPress(_) | EventType::MouseMove { .. } => {
+                            EventType::KeyPress(_) | EventType::ButtonPress(_) => {
                                 flag.store(true, Ordering::Relaxed);
                             }
                             _ => {}
@@ -76,16 +89,15 @@ fn main() {
                     });
                 });
                 if result.is_err() {
-                    eprintln!("rdev listener failed - no accessibility permission");
+                    eprintln!("rdev failed - grant Accessibility permission in System Settings");
                 }
             });
 
-            // Polling thread - reads flag, emits to frontend (safe thread)
             let app_handle = app.handle().clone();
             let flag_reader = input_flag;
             thread::spawn(move || {
                 loop {
-                    thread::sleep(Duration::from_millis(200));
+                    thread::sleep(Duration::from_millis(150));
                     if flag_reader.swap(false, Ordering::Relaxed) {
                         let _ = app_handle.emit("global-input", ());
                     }

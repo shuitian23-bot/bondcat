@@ -2,747 +2,600 @@
 <html lang="zh">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=600,height=200,user-scalable=no">
-<title>BondCat v0.2.0</title>
+<meta name="viewport" content="width=500, height=160">
+<title>邦德猫 v0.3.0</title>
 <style>
-* { margin: 0; padding: 0; box-sizing: border-box; }
-html, body { width: 600px; height: 200px; overflow: hidden; background: transparent; }
-canvas { display: block; background: transparent; }
+* { margin:0; padding:0; box-sizing:border-box; }
+body { width:500px; height:160px; overflow:hidden; background:#0d0d1a; font-family:'Segoe UI',sans-serif; user-select:none; }
+#titlebar {
+  height:24px; background:#13132a; display:flex; align-items:center; padding:0 6px;
+  cursor:default; border-bottom:1px solid #2a2a4a;
+}
+#titlebar .title { color:#f0a040; font-size:11px; font-weight:bold; white-space:nowrap; }
+#titlebar .stats { color:#ccc; font-size:10px; margin-left:auto; white-space:nowrap; letter-spacing:0.5px; }
+#titlebar .btns { margin-left:12px; display:flex; gap:2px; }
+#titlebar .btns button {
+  background:none; border:1px solid #333; color:#aaa; font-size:11px; width:22px; height:18px;
+  cursor:pointer; border-radius:3px; display:flex; align-items:center; justify-content:center;
+  padding:0; line-height:1;
+}
+#titlebar .btns button:hover { background:#333; color:#fff; border-color:#555; }
+#titlebar .btns button:last-child:hover { background:#a33; }
+canvas { display:block; }
+#modal {
+  display:none; position:fixed; top:0; left:0; width:500px; height:160px;
+  background:rgba(0,0,0,0.85); z-index:100; flex-direction:column; align-items:center; justify-content:center;
+}
+#modal.open { display:flex; }
+#modal .panel {
+  background:#1a1a2e; border:2px solid #f0a040; border-radius:8px; padding:12px 16px;
+  min-width:320px; max-width:460px; color:#eee; font-size:11px;
+}
+#modal .panel h3 { color:#f0a040; font-size:13px; margin-bottom:8px; text-align:center; }
+#modal .panel .row { display:flex; justify-content:space-between; align-items:center; padding:3px 0; border-bottom:1px solid #222; }
+#modal .panel .row:last-child { border:none; }
+#modal .panel button {
+  background:#f0a040; color:#000; border:none; padding:3px 10px; border-radius:4px;
+  cursor:pointer; font-size:10px; font-weight:bold;
+}
+#modal .panel button:hover { background:#ffb860; }
+#modal .panel button.owned { background:#555; color:#999; cursor:default; }
+#modal .panel button.equipped { background:#4a4; color:#fff; cursor:default; }
+#modal .close-hint { color:#666; font-size:9px; margin-top:6px; }
 </style>
 </head>
 <body>
-<canvas id="gc" width="600" height="200"></canvas>
+<div id="titlebar" data-tauri-drag-region>
+  <span class="title" data-tauri-drag-region>邦德猫 v0.3.0</span>
+  <span class="stats" id="stats" data-tauri-drag-region></span>
+  <div class="btns">
+    <button onclick="openModal('backpack')">📦</button>
+    <button onclick="openModal('shop')">🛒</button>
+    <button onclick="hideWindow()">✕</button>
+  </div>
+</div>
+<canvas id="game" width="500" height="136"></canvas>
+<div id="modal"><div class="panel" id="modalContent"></div><div class="close-hint">ESC 关闭</div></div>
+
 <script>
-'use strict';
-// ============================================================
-// BondCat v0.2.0 — Tauri v2 Desktop Floating Game
-// ============================================================
-
-const canvas = document.getElementById('gc');
-const ctx = canvas.getContext('2d');
-const W = 600, H = 200;
-ctx.imageSmoothingEnabled = false;
-
-// ---- Save / Load -------------------------------------------
-const SAVE_KEY = 'bondcat_v2';
-function defaultData() {
-  return { coins: 0, kills: 0, level: 1, xp: 0, weapon: 0, skin: 0, chests: [0,0,0], catHp: 100, catMaxHp: 100 };
-}
-function loadData() {
-  try {
-    const raw = localStorage.getItem(SAVE_KEY);
-    if (!raw) return defaultData();
-    const d = JSON.parse(raw);
-    if (!d || typeof d !== 'object') return defaultData();
-    const def = defaultData();
-    for (const k of Object.keys(def)) {
-      if (d[k] === null || d[k] === undefined) d[k] = def[k];
-    }
-    if (!Array.isArray(d.chests) || d.chests.length !== 3) d.chests = [0,0,0];
-    for (let i = 0; i < 3; i++) d.chests[i] = d.chests[i] || 0;
-    d.coins = d.coins || 0;
-    d.kills = d.kills || 0;
-    d.level = d.level || 1;
-    d.xp = d.xp || 0;
-    d.catHp = d.catHp || 100;
-    d.catMaxHp = d.catMaxHp || 100;
-    return d;
-  } catch(e) { return defaultData(); }
-}
-function saveData() { try { localStorage.setItem(SAVE_KEY, JSON.stringify(game)); } catch(e){} }
-
-let game = loadData();
-
-// ---- Sprites -----------------------------------------------
-const CAT_COLORS = { O:'#f0a040', S:'#d07010', K:'#222222', W:'#8888ff', P:'#ffb090', E:'#ffe0a0' };
-const CAT_SPRITE = [
+// ============ SPRITES ============
+const CAT = [
   '....OO......OO..',
-  '...OOOO....OOOO.',
-  '..OOSOOO..OOSOO.',
+  '...OSSO....OSSO.',
+  '..OOOOOOOOOOOOOO',
   '..OOOOOOOOOOOOOO',
   '..OOKKKKKKKKKOO.',
   '..OOKWKKKKWKOO..',
   '..OOOOOPPOOOO...',
-  '..OOOOOOOOOOO...',
-  '...OOOOOOOOOO...',
   '..OOOOOOOOOOOO..',
-  '..OOEEEEEEEOO...',
+  '..OOOEEEEEEOOO..',
+  '..OOOEEEEEEOOO..',
+  '..OOOOOOOOOOOO..',
   '..OOOOOOOOOOOO..',
   '..OO..OOOO..OO..',
   '..OO..OOOO..OO..',
   '..PP...PP...PP..',
   '................',
 ];
+const CAT_COLORS = {O:'#f0a040',S:'#d07010',K:'#222222',W:'#88aaff',P:'#ffb090',E:'#ffe0a0'};
 
-const CAT_DEAD_SPRITE = [
-  '................',
-  '................',
-  '................',
-  '................',
-  '................',
-  '................',
-  '................',
-  '................',
-  'PP.PP.PP........',
-  'OO.OO.OO.OOOOOO',
-  'OO.OO.OO.OEEEEO',
-  'OOOOOOOOOOOOOOOO',
-  'OOKKKKKKKKKWKOO.',
-  'OOKWKKKKKKKKOO..',
-  '.OOOOOOOOOOOOO..',
-  '..OOSOO..OOSOO..',
+const SLIME = [
+  '..........',
+  '..GGGGGG..',
+  '.GGGGGGGG.',
+  'GGWGGGGWGG',
+  'GGGGGGGGGG',
+  'GGGGGGGGGG',
+  'GLGGGGGGGG',
+  '.GGGGGGGG.',
+  '..GGGGGG..',
+  '..........',
 ];
+const SLIME_COLORS = {G:'#44cc44',W:'#ffffff',L:'#88ff88'};
 
-// --- Slime (12x12) ---
-const SLIME_SPRITE = [
-  '....GGGG....',
-  '..GGGGGGGG..',
-  '.GGGGGGGGGG.',
-  'GGWGGGGGWGGG',
-  'GGBGGGGGBGGG',
-  'GGGGGGGGGGGG',
-  'GGGGGGGGGGGG',
-  'GGGGMMMGGGGG',
-  '.GGGGGGGGGG.',
-  '.GGGGGGGGGG.',
-  '..GGGGGGGG..',
-  '....GGGG....',
-];
-const SLIME_COLORS = { G:'#44dd44', W:'#ffffff', B:'#111111', M:'#228822' };
-
-// --- Bat (12x12) ---
-const BAT_SPRITE = [
-  'P..........P',
-  'PP........PP',
-  'PPP..PP..PPP',
-  'PPPPPPPPPPP.',
-  '.PPWPPPPWPP.',
-  '.PPBPPMPPBP.',
-  '..PPPPPPPP..',
-  '..PPPPPPPP..',
-  '...PP..PP...',
+const BAT = [
   '..P......P..',
+  '.PP......PP.',
+  'PPP..PP..PPP',
+  'PPPPPPPPPPPP',
+  '.PPPRPPPPPP.',
+  '..PPPPPPPP..',
+  '...PPPPPP...',
+  '....P..P....',
   '............',
   '............',
 ];
-const BAT_COLORS = { P:'#9944cc', W:'#ffffff', B:'#220033', M:'#cc44ff' };
+const BAT_COLORS = {P:'#9944cc',R:'#ff4444'};
 
-// --- Skeleton (12x12) ---
-const SKULL_SPRITE = [
-  '....WWWW....',
-  '..WWWWWWWW..',
-  '.WWWWWWWWWW.',
-  'WWWBWWWWBWWW',
-  'WWWBWWWWBWWW',
-  '.WWWWWWWWWW.',
-  '..WWWGGWWW..',
-  '...WGWGWW...',
-  '....WWWW....',
-  '...WWWWWW...',
-  '....WWWW....',
-  '....W..W....',
+const SKULL = [
+  '..WWWWWW..',
+  '.WWWWWWWW.',
+  'WWBWWWWBWW',
+  'WWWWWWWWWW',
+  'WWWWWWWWWW',
+  '.WWWWWWWW.',
+  '..WBWBWW..',
+  '...WWWW...',
+  '..WWWWWW..',
+  '..W.WW.W..',
+  '..W.WW.W..',
+  '..W.WW.W..',
 ];
-const SKULL_COLORS = { W:'#e8e8e8', B:'#111111', G:'#888888' };
+const SKULL_COLORS = {W:'#e8e8e8',B:'#222222'};
+
+const CHEST_NORMAL = [
+  '........',
+  '.BBBBBB.',
+  'BBBYBBBB',
+  'BBBBBBBB',
+  'BBBYBBBB',
+  'BBBBBBBB',
+  '.BBBBBB.',
+  '........',
+];
+const CHEST_RARE = [
+  '........',
+  '.CCCCCC.',
+  'CCCWCCCC',
+  'CCCCCCCC',
+  'CCCWCCCC',
+  'CCCCCCCC',
+  '.CCCCCC.',
+  '........',
+];
+const CHEST_EPIC = [
+  '........',
+  '.PPPPPP.',
+  'PPPWPPPP',
+  'PPPPPPPP',
+  'PPPWPPPP',
+  'PPPPPPPP',
+  '.PPPPPP.',
+  '........',
+];
+const CHEST_COLORS_N = {B:'#8B4513',Y:'#FFD700'};
+const CHEST_COLORS_R = {C:'#4488ff',W:'#ffffff'};
+const CHEST_COLORS_E = {P:'#aa44ff',W:'#ffffff'};
+
+// ============ DRAW SPRITE ============
+const canvas = document.getElementById('game');
+const ctx = canvas.getContext('2d');
+ctx.imageSmoothingEnabled = false;
+
+function drawSprite(sprite, colors, x, y, scale, flash) {
+  for (let r = 0; r < sprite.length; r++) {
+    for (let c = 0; c < sprite[r].length; c++) {
+      const ch = sprite[r][c];
+      if (ch === '.') continue;
+      ctx.fillStyle = flash ? '#ffffff' : (colors[ch] || '#ff00ff');
+      ctx.fillRect(x + c * scale, y + r * scale, scale, scale);
+    }
+  }
+}
+
+// ============ GAME STATE ============
+const SAVE_KEY = 'bondcat_v3';
+let state = loadState();
+
+function defaultState() {
+  return {
+    gold: 0, kills: 0, level: 1, xp: 0,
+    catHp: 100, catMaxHp: 100,
+    weapon: 0, outfit: 0,
+    chests: [0, 0, 0],
+    weaponOwned: [true, false, false],
+    outfitOwned: [true, false, false],
+  };
+}
+function loadState() {
+  try { const s = JSON.parse(localStorage.getItem(SAVE_KEY)); return s && s.gold !== undefined ? s : defaultState(); }
+  catch(e) { return defaultState(); }
+}
+function saveState() { localStorage.setItem(SAVE_KEY, JSON.stringify(state)); }
+
+const WEAPONS = [{name:'木剑',dmg:1,cost:0},{name:'铁锤',dmg:3,cost:500},{name:'魔杖',dmg:6,cost:2000}];
+const OUTFITS = [{name:'普通',cost:0},{name:'骑士',cost:1000},{name:'魔法',cost:3000}];
+
+// ============ ENTITIES ============
+let monsters = [];
+let particles = [];
+let floatTexts = [];
+let chestDrops = [];
+let attackAnim = 0;
+let attackArc = 0;
+let catFlash = 0;
+let catDead = 0;
+let spawnTimer = 0;
+let modalOpen = false;
+let stars = [];
+
+for (let i = 0; i < 40; i++) {
+  stars.push({ x: Math.random() * 500, y: Math.random() * 100, s: Math.random() * 1.5 + 0.5, phase: Math.random() * Math.PI * 2 });
+}
 
 const MONSTER_TYPES = [
-  { name:'slime', sprite:SLIME_SPRITE, colors:SLIME_COLORS, hp:30, xp:10, speed:28 },
-  { name:'bat',   sprite:BAT_SPRITE,   colors:BAT_COLORS,   hp:20, xp:15, speed:35 },
-  { name:'skull', sprite:SKULL_SPRITE,  colors:SKULL_COLORS,  hp:50, xp:25, speed:25 },
+  { name:'史莱姆', sprite:SLIME, colors:SLIME_COLORS, hp:3, scale:3, xpVal:2, goldMin:3, goldMax:8 },
+  { name:'蝙蝠', sprite:BAT, colors:BAT_COLORS, hp:5, scale:3, xpVal:4, goldMin:5, goldMax:12 },
+  { name:'骷髅', sprite:SKULL, colors:SKULL_COLORS, hp:8, scale:3, xpVal:7, goldMin:8, goldMax:20 },
 ];
-
-// ---- Chest sprite (8x8) ---
-const CHEST_SPRITE = [
-  '.BBBBBB.',
-  'BCCCCCB.',
-  'BCCCCCB.',
-  'BBYYYBB.',
-  'BCCCCCB.',
-  'BCCCCCB.',
-  'BCCCCCB.',
-  '.BBBBBB.',
-];
-const CHEST_COLORS_NORMAL = { B:'#5a3a1a', C:'#a07040', Y:'#ffd700' };
-const CHEST_COLORS_RARE   = { B:'#1a3a6a', C:'#4080c0', Y:'#88ccff' };
-const CHEST_COLORS_EPIC   = { B:'#4a1a6a', C:'#9040c0', Y:'#dd88ff' };
-
-function drawSprite(x, y, sprite, colorMap, scale) {
-  ctx.save();
-  for (let row = 0; row < sprite.length; row++) {
-    for (let col = 0; col < sprite[row].length; col++) {
-      const c = sprite[row][col];
-      if (c !== '.' && colorMap[c]) {
-        ctx.fillStyle = colorMap[c];
-        ctx.fillRect(x + col * scale, y + row * scale, scale, scale);
-      }
-    }
-  }
-  ctx.restore();
-}
-
-// ---- Game State --------------------------------------------
-const CAT_X = 80;
-const CAT_SCALE = 3;
-const CAT_W = 16 * CAT_SCALE;
-const CAT_H = 16 * CAT_SCALE;
-const GROUND_Y = H - 8;
-const CAT_Y = GROUND_Y - CAT_H;
-
-let monsters = [];
-let chestDrops = [];
-let effects = [];
-let lastSpawn = 0;
-let modalOpen = null; // null | 'backpack' | 'shop'
-let catDead = false;
-let catDeadTimer = 0;
-let catHitFlash = 0;
-let attackArc = 0;
-let stars = [];
-let lastTime = 0;
-let saveTimer = 0;
-
-// Generate stars
-for (let i = 0; i < 30; i++) {
-  stars.push({ x: Math.random() * W, y: Math.random() * (H - 40), size: Math.random() * 1.5 + 0.5, blink: Math.random() * Math.PI * 2 });
-}
-
-// ---- Weapons -----------------------------------------------
-const WEAPONS = [
-  { name: '木剑',   atk: 10, price: 0 },
-  { name: '铁剑',   atk: 18, price: 50 },
-  { name: '火焰剑', atk: 30, price: 150 },
-  { name: '雷霆剑', atk: 50, price: 400 },
-];
-
-const SKINS = [
-  { name: '默认',   price: 0 },
-  { name: '黑猫',   price: 100 },
-  { name: '白猫',   price: 200 },
-];
-
-function getAtk() {
-  const w = game.weapon || 0;
-  return (WEAPONS[w] ? WEAPONS[w].atk : 10) + (game.level || 1) * 2;
-}
-
-function xpToLevel(lv) { return lv * 30; }
-
-function addXp(amount) {
-  game.xp = (game.xp || 0) + amount;
-  while (game.xp >= xpToLevel(game.level)) {
-    game.xp -= xpToLevel(game.level);
-    game.level++;
-    game.catMaxHp = 100 + (game.level - 1) * 10;
-    game.catHp = game.catMaxHp;
-  }
-}
-
-// ---- Drawing -----------------------------------------------
-function roundRect(x, y, w, h, r) {
-  ctx.beginPath();
-  ctx.moveTo(x + r, y);
-  ctx.lineTo(x + w - r, y);
-  ctx.quadraticCurveTo(x + w, y, x + w, y + r);
-  ctx.lineTo(x + w, y + h - r);
-  ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
-  ctx.lineTo(x + r, y + h);
-  ctx.quadraticCurveTo(x, y + h, x, y + h - r);
-  ctx.lineTo(x, y + r);
-  ctx.quadraticCurveTo(x, y, x + r, y);
-  ctx.closePath();
-}
-
-function drawBackground(t) {
-  ctx.save();
-  // Rounded clip for entire canvas
-  roundRect(0, 0, W, H, 12);
-  ctx.clip();
-  // Thin semi-transparent top bar (drag handle + HUD area)
-  ctx.fillStyle = "rgba(15,15,30,0.7)";
-  ctx.fillRect(0, 0, W, 28);
-  // Thin bottom ground strip with slight transparency
-  ctx.fillStyle = "rgba(15,25,15,0.6)";
-  ctx.fillRect(0, GROUND_Y - 10, W, 18);
-  // Stars
-  for (const s of stars) {
-    const alpha = 0.4 + 0.4 * Math.sin(t * 1.5 + s.blink);
-    ctx.fillStyle = `rgba(255,255,220,${alpha.toFixed(2)})`;
-    ctx.fillRect(Math.round(s.x), Math.round(s.y), Math.ceil(s.size), Math.ceil(s.size));
-  }
-  // Ground / grass
-  ctx.fillStyle = '#2a5a2a';
-  ctx.fillRect(0, GROUND_Y, W, 8);
-  // Grass blades
-  ctx.fillStyle = '#3a7a3a';
-  for (let x = 0; x < W; x += 6) {
-    ctx.fillRect(x, GROUND_Y - 2, 2, 4);
-  }
-  ctx.fillStyle = '#4a9a4a';
-  for (let x = 3; x < W; x += 10) {
-    ctx.fillRect(x, GROUND_Y - 3, 1, 3);
-  }
-  ctx.restore();
-}
-
-function drawCat(t) {
-  ctx.save();
-  if (catDead) {
-    // Flicker effect
-    const flicker = Math.sin(t * 12) > 0 ? 0.3 : 0.7;
-    ctx.globalAlpha = flicker;
-    drawSprite(CAT_X, CAT_Y, CAT_DEAD_SPRITE, CAT_COLORS, CAT_SCALE);
-  } else {
-    if (catHitFlash > 0) {
-      ctx.globalAlpha = Math.sin(catHitFlash * 15) > 0 ? 0.5 : 1.0;
-    }
-    // Idle bounce
-    const bounce = Math.sin(t * 3) * 2;
-    drawSprite(CAT_X, CAT_Y + bounce, CAT_SPRITE, CAT_COLORS, CAT_SCALE);
-  }
-  // HP bar
-  ctx.globalAlpha = 1;
-  const hpRatio = Math.max(0, (game.catHp || 0)) / (game.catMaxHp || 100);
-  const barW = 40, barH = 4;
-  const barX = CAT_X + (CAT_W - barW) / 2;
-  const barY = CAT_Y - 8;
-  ctx.fillStyle = '#333';
-  ctx.fillRect(barX, barY, barW, barH);
-  ctx.fillStyle = hpRatio > 0.5 ? '#44dd44' : hpRatio > 0.25 ? '#dddd44' : '#dd4444';
-  ctx.fillRect(barX, barY, barW * hpRatio, barH);
-  ctx.restore();
-}
-
-function drawMonsters(t) {
-  ctx.save();
-  for (const m of monsters) {
-    const bounce = Math.sin(t * 4 + m.id) * 2;
-    const my = GROUND_Y - m.type.sprite.length * 3;
-    if (m.hitFlash > 0) {
-      ctx.globalAlpha = 0.5;
-    } else {
-      ctx.globalAlpha = 1;
-    }
-    drawSprite(m.x, my + bounce, m.type.sprite, m.type.colors, 3);
-    // HP bar
-    ctx.globalAlpha = 1;
-    const hpRatio = m.hp / m.type.hp;
-    ctx.fillStyle = '#333';
-    ctx.fillRect(m.x + 4, my - 6, 28, 3);
-    ctx.fillStyle = '#dd4444';
-    ctx.fillRect(m.x + 4, my - 6, 28 * hpRatio, 3);
-  }
-  ctx.restore();
-}
-
-function drawChests(t) {
-  ctx.save();
-  for (const c of chestDrops) {
-    const colors = c.rarity === 2 ? CHEST_COLORS_EPIC : c.rarity === 1 ? CHEST_COLORS_RARE : CHEST_COLORS_NORMAL;
-    const floatY = Math.sin(t * 3 + c.x) * 3;
-    drawSprite(c.x, c.y + floatY, CHEST_SPRITE, colors, 3);
-  }
-  ctx.restore();
-}
-
-function drawEffects(t) {
-  ctx.save();
-  for (const e of effects) {
-    if (e.type === 'slash') {
-      ctx.globalAlpha = e.life;
-      ctx.strokeStyle = '#ffffff';
-      ctx.lineWidth = 3;
-      ctx.beginPath();
-      const startAngle = -Math.PI * 0.4;
-      const endAngle = Math.PI * 0.4;
-      const progress = 1 - e.life;
-      const currentEnd = startAngle + (endAngle - startAngle) * progress;
-      ctx.arc(e.x, e.y, 30, startAngle, currentEnd);
-      ctx.stroke();
-      // Inner glow
-      ctx.strokeStyle = 'rgba(255,200,100,0.5)';
-      ctx.lineWidth = 6;
-      ctx.beginPath();
-      ctx.arc(e.x, e.y, 28, startAngle, currentEnd);
-      ctx.stroke();
-    } else if (e.type === 'text') {
-      ctx.globalAlpha = e.life;
-      ctx.font = 'bold 12px monospace';
-      ctx.fillStyle = e.color || '#ffdd44';
-      ctx.fillText(e.text, e.x, e.y);
-    }
-  }
-  ctx.restore();
-}
-
-function drawHUD() {
-  ctx.save();
-  // Background panel
-  roundRect(6, 6, 170, 22, 6);
-  ctx.fillStyle = 'rgba(0,0,0,0.5)';
-  ctx.fill();
-  ctx.font = '11px monospace';
-  ctx.fillStyle = '#ffd700';
-  ctx.fillText('\u{1F4B0}' + (game.coins || 0), 12, 21);
-  ctx.fillStyle = '#ff6666';
-  ctx.fillText('\u{2694}\uFE0F' + (game.kills || 0), 65, 21);
-  ctx.fillStyle = '#88ccff';
-  ctx.fillText('Lv' + (game.level || 1), 118, 21);
-  // XP bar
-  const xpRatio = (game.xp || 0) / xpToLevel(game.level || 1);
-  ctx.fillStyle = '#333';
-  ctx.fillRect(148, 12, 20, 6);
-  ctx.fillStyle = '#44aaff';
-  ctx.fillRect(148, 12, 20 * xpRatio, 6);
-  // Drag hint (right side of top bar)
-  ctx.fillStyle = 'rgba(255,255,255,0.3)';
-  ctx.font = '10px monospace';
-  ctx.textAlign = 'right';
-  ctx.fillText('☰ 拖拽移动', W - 10, 18);
-  ctx.textAlign = 'left';
-  ctx.restore();
-}
-
-function drawModal() {
-  ctx.save();
-  // Overlay
-  ctx.fillStyle = 'rgba(0,0,0,0.6)';
-  ctx.fillRect(0, 0, W, H);
-  // Panel
-  const px = 80, py = 20, pw = W - 160, ph = H - 40;
-  roundRect(px, py, pw, ph, 10);
-  ctx.fillStyle = 'rgba(20,20,40,0.95)';
-  ctx.fill();
-  ctx.strokeStyle = '#555';
-  ctx.lineWidth = 1;
-  ctx.stroke();
-
-  ctx.font = 'bold 14px monospace';
-  ctx.fillStyle = '#ffffff';
-
-  if (modalOpen === 'backpack') {
-    ctx.fillText('--- 背包 ---', px + pw/2 - 50, py + 24);
-    ctx.font = '11px monospace';
-    const labels = ['普通', '稀有', '史诗'];
-    const colors = ['#a07040', '#4080c0', '#9040c0'];
-    for (let i = 0; i < 3; i++) {
-      ctx.fillStyle = colors[i];
-      ctx.fillText(labels[i] + ' x' + (game.chests[i] || 0), px + 20, py + 50 + i * 18);
-    }
-    // Open all button
-    const total = (game.chests[0]||0) + (game.chests[1]||0) + (game.chests[2]||0);
-    const btnX = px + pw - 110, btnY = py + 50, btnW = 90, btnH = 28;
-    roundRect(btnX, btnY, btnW, btnH, 5);
-    ctx.fillStyle = total > 0 ? '#44aa44' : '#555555';
-    ctx.fill();
-    ctx.fillStyle = '#fff';
-    ctx.font = '11px monospace';
-    ctx.fillText('全部打开', btnX + 14, btnY + 18);
-    // Store button bounds for click detection
-    modalBtns = [{ x:btnX, y:btnY, w:btnW, h:btnH, action:'openAllChests' }];
-    // Close hint
-    ctx.fillStyle = '#888';
-    ctx.font = '10px monospace';
-    ctx.fillText('ESC 关闭', px + pw/2 - 28, py + ph - 8);
-  } else if (modalOpen === 'shop') {
-    ctx.fillText('--- 商城 ---', px + pw/2 - 50, py + 24);
-    ctx.font = '10px monospace';
-    modalBtns = [];
-    // Weapons
-    ctx.fillStyle = '#ffdd44';
-    ctx.fillText('武器:', px + 15, py + 44);
-    for (let i = 0; i < WEAPONS.length; i++) {
-      const wp = WEAPONS[i];
-      const iy = py + 56 + i * 16;
-      const owned = i <= (game.weapon || 0);
-      const equipped = i === (game.weapon || 0);
-      ctx.fillStyle = equipped ? '#44ff44' : owned ? '#888' : '#ccc';
-      ctx.fillText(wp.name + ' ATK:' + wp.atk, px + 20, iy);
-      if (!owned) {
-        const bx = px + pw - 80, bw = 60, bh = 14;
-        roundRect(bx, iy - 11, bw, bh, 3);
-        ctx.fillStyle = game.coins >= wp.price ? '#cc8800' : '#444';
-        ctx.fill();
-        ctx.fillStyle = '#fff';
-        ctx.fillText(wp.price + '金', bx + 8, iy);
-        modalBtns.push({ x:bx, y:iy-11, w:bw, h:bh, action:'buyWeapon', idx:i });
-      } else if (equipped) {
-        ctx.fillStyle = '#44ff44';
-        ctx.fillText('[装备中]', px + pw - 80, iy);
-      }
-    }
-    ctx.fillStyle = '#888';
-    ctx.font = '10px monospace';
-    ctx.fillText('ESC 关闭', px + pw/2 - 28, py + ph - 8);
-  }
-  ctx.restore();
-}
-
-let modalBtns = [];
-
-// ---- Game Logic --------------------------------------------
-let monsterIdCounter = 0;
 
 function spawnMonster() {
   if (monsters.length >= 4) return;
-  const type = MONSTER_TYPES[Math.floor(Math.random() * MONSTER_TYPES.length)];
-  const x = 400 + Math.random() * 150;
+  const lvl = Math.min(2, Math.floor(state.level / 3));
+  const typeIdx = Math.random() < 0.5 ? 0 : (Math.random() < 0.6 ? Math.min(1,lvl) : Math.min(2,lvl));
+  const t = MONSTER_TYPES[typeIdx];
+  const hpMult = 1 + (state.level - 1) * 0.3;
   monsters.push({
-    id: monsterIdCounter++,
-    type: type,
-    x: x,
-    hp: type.hp,
-    atkTimer: 0,
-    hitFlash: 0,
+    type: typeIdx, x: 350 + Math.random() * 100, y: 136 - t.sprite.length * t.scale - 8,
+    hp: Math.ceil(t.hp * hpMult), maxHp: Math.ceil(t.hp * hpMult),
+    speed: 25 + Math.random() * 10, flash: 0, atkTimer: 0,
   });
 }
 
+// ============ ATTACK ============
 function playerAttack() {
-  if (catDead || modalOpen) return;
-  attackArc = 0.2;
-  effects.push({ type:'slash', x: CAT_X + CAT_W + 10, y: GROUND_Y - 20, life: 1.0 });
-  const atk = getAtk();
+  if (catDead > 0) return;
+  attackAnim = 0.3;
+  attackArc = 1.0;
+  const dmg = WEAPONS[state.weapon].dmg + Math.floor(state.level * 0.5);
+  let hit = false;
   for (const m of monsters) {
-    if (m.x - CAT_X - CAT_W < 100 && m.x > CAT_X) {
-      m.hp -= atk;
-      m.hitFlash = 0.15;
-      effects.push({ type:'text', x: m.x + 10, y: GROUND_Y - 50, text: '-' + atk, color:'#ffdd44', life:1.0 });
+    if (m.x < 200) {
+      m.hp -= dmg;
+      m.flash = 0.15;
+      hit = true;
+      floatTexts.push({ x: m.x + 10, y: m.y - 5, text: '-' + dmg, color: '#ffffff', life: 0.8 });
+      if (m.hp <= 0) {
+        killMonster(m);
+      }
+      break;
+    }
+  }
+  if (!hit) {
+    for (const m of monsters) {
+      if (m.x < 300) {
+        m.hp -= dmg;
+        m.flash = 0.15;
+        floatTexts.push({ x: m.x + 10, y: m.y - 5, text: '-' + dmg, color: '#ffffff', life: 0.8 });
+        if (m.hp <= 0) killMonster(m);
+        break;
+      }
     }
   }
 }
+
+function killMonster(m) {
+  const t = MONSTER_TYPES[m.type];
+  state.kills++;
+  state.xp += t.xpVal;
+  const xpNeeded = state.level * 15;
+  if (state.xp >= xpNeeded) { state.level++; state.xp -= xpNeeded; state.catMaxHp += 10; state.catHp = state.catMaxHp;
+    floatTexts.push({ x: 80, y: 20, text: 'LEVEL UP!', color: '#ffff00', life: 1.5 });
+  }
+  // particles
+  for (let i = 0; i < 12; i++) {
+    particles.push({ x: m.x + 15, y: m.y + 15, vx: (Math.random()-0.5)*120, vy: (Math.random()-0.5)*120,
+      color: t.colors[Object.keys(t.colors)[0]], life: 0.6 + Math.random()*0.3 });
+  }
+  // chest drop 80%
+  if (Math.random() < 0.8) {
+    const r = Math.random();
+    const rarity = r < 0.6 ? 0 : (r < 0.9 ? 1 : 2);
+    const gold = t.goldMin + Math.floor(Math.random() * (t.goldMax - t.goldMin + 1));
+    chestDrops.push({ x: m.x, y: m.y, rarity, gold, timer: 2.0, collected: false });
+  }
+  saveState();
+}
+
+function monsterAttack(m) {
+  if (catDead > 0) return;
+  const dmg = 3 + m.type * 2 + Math.floor(state.level * 0.5);
+  state.catHp -= dmg;
+  catFlash = 0.2;
+  floatTexts.push({ x: 80, y: 40, text: '-' + dmg, color: '#ff4444', life: 0.8 });
+  if (state.catHp <= 0) {
+    state.catHp = 0;
+    catDead = 3.0;
+    const lost = Math.floor(state.gold * 0.2);
+    state.gold -= lost;
+    if (lost > 0) floatTexts.push({ x: 80, y: 30, text: '-' + lost + '💰', color: '#ff6666', life: 1.2 });
+  }
+  saveState();
+}
+
+// ============ MODAL ============
+function openModal(type) {
+  modalOpen = true;
+  const el = document.getElementById('modal');
+  const content = document.getElementById('modalContent');
+  el.classList.add('open');
+  if (type === 'backpack') {
+    const names = ['普通宝箱🟫','稀有宝箱🔵','史诗宝箱🟣'];
+    let total = state.chests[0] + state.chests[1] + state.chests[2];
+    let html = '<h3>📦 背包</h3>';
+    for (let i = 0; i < 3; i++) html += `<div class="row"><span>${names[i]}</span><span>x${state.chests[i]}</span></div>`;
+    html += `<div style="text-align:center;margin-top:8px"><button onclick="openAllChests()" ${total===0?'class="owned"':''}>一键全开 (${total})</button></div>`;
+    content.innerHTML = html;
+  } else if (type === 'shop') {
+    let html = '<h3>🛒 商城</h3>';
+    html += '<div style="margin-bottom:6px;color:#f0a040;font-size:10px">💰 ' + state.gold + ' 金币</div>';
+    html += '<div style="font-size:10px;color:#888;margin-bottom:4px">⚔️ 武器</div>';
+    for (let i = 0; i < WEAPONS.length; i++) {
+      const w = WEAPONS[i];
+      const owned = state.weaponOwned[i];
+      const equipped = state.weapon === i;
+      let btn = '';
+      if (equipped) btn = '<button class="equipped">装备中</button>';
+      else if (owned) btn = `<button onclick="equipWeapon(${i})">装备</button>`;
+      else btn = `<button onclick="buyWeapon(${i})">${w.cost}💰</button>`;
+      html += `<div class="row"><span>${w.name} (DMG+${w.dmg})</span>${btn}</div>`;
+    }
+    html += '<div style="font-size:10px;color:#888;margin:4px 0">🎨 装扮</div>';
+    for (let i = 0; i < OUTFITS.length; i++) {
+      const o = OUTFITS[i];
+      const owned = state.outfitOwned[i];
+      const equipped = state.outfit === i;
+      let btn = '';
+      if (equipped) btn = '<button class="equipped">穿着中</button>';
+      else if (owned) btn = `<button onclick="equipOutfit(${i})">穿上</button>`;
+      else btn = `<button onclick="buyOutfit(${i})">${o.cost}💰</button>`;
+      html += `<div class="row"><span>${o.name}</span>${btn}</div>`;
+    }
+    content.innerHTML = html;
+  }
+}
+
+function closeModal() { modalOpen = false; document.getElementById('modal').classList.remove('open'); }
 
 function openAllChests() {
-  let totalCoins = 0;
-  const rewards = [5, 15, 40]; // coins per chest type
+  let totalGold = 0;
+  const goldPer = [5, 15, 40];
   for (let i = 0; i < 3; i++) {
-    totalCoins += (game.chests[i] || 0) * rewards[i];
-    game.chests[i] = 0;
+    for (let j = 0; j < state.chests[i]; j++) {
+      totalGold += goldPer[i] + Math.floor(Math.random() * goldPer[i]);
+    }
+    state.chests[i] = 0;
   }
-  if (totalCoins > 0) {
-    game.coins += totalCoins;
-    effects.push({ type:'text', x: W/2 - 30, y: H/2, text: '+' + totalCoins + ' 金币!', color:'#ffd700', life: 1.5 });
+  if (totalGold > 0) {
+    state.gold += totalGold;
+    floatTexts.push({ x: 200, y: 50, text: '+' + totalGold + '💰', color: '#FFD700', life: 1.5 });
+    saveState();
+  }
+  openModal('backpack');
+}
+
+function buyWeapon(i) {
+  if (state.gold >= WEAPONS[i].cost && !state.weaponOwned[i]) {
+    state.gold -= WEAPONS[i].cost; state.weaponOwned[i] = true; state.weapon = i; saveState(); openModal('shop');
   }
 }
-
-function openModal(name) {
-  modalOpen = name;
-  modalBtns = [];
+function equipWeapon(i) { state.weapon = i; saveState(); openModal('shop'); }
+function buyOutfit(i) {
+  if (state.gold >= OUTFITS[i].cost && !state.outfitOwned[i]) {
+    state.gold -= OUTFITS[i].cost; state.outfitOwned[i] = true; state.outfit = i; saveState(); openModal('shop');
+  }
 }
-function closeModal() {
-  modalOpen = null;
-  modalBtns = [];
-}
+function equipOutfit(i) { state.outfit = i; saveState(); openModal('shop'); }
 
-function resetData() {
-  game = defaultData();
-  monsters = [];
-  chestDrops = [];
-  effects = [];
-  catDead = false;
-  catDeadTimer = 0;
-  saveData();
-}
+function resetData() { state = defaultState(); monsters = []; particles = []; floatTexts = []; chestDrops = []; saveState(); }
 
-function handleModalClick(mx, my) {
-  for (const btn of modalBtns) {
-    if (mx >= btn.x && mx <= btn.x + btn.w && my >= btn.y && my <= btn.y + btn.h) {
-      if (btn.action === 'openAllChests') {
-        openAllChests();
-      } else if (btn.action === 'buyWeapon') {
-        const wp = WEAPONS[btn.idx];
-        if (wp && game.coins >= wp.price && btn.idx > (game.weapon || 0)) {
-          game.coins -= wp.price;
-          game.weapon = btn.idx;
-        }
-      }
-      return true;
+// ============ UPDATE & RENDER ============
+let lastTime = performance.now();
+
+function update(dt) {
+  if (modalOpen) return;
+
+  // spawn
+  spawnTimer -= dt;
+  if (spawnTimer <= 0) { spawnTimer = 4; spawnMonster(); }
+
+  // cat dead
+  if (catDead > 0) {
+    catDead -= dt;
+    if (catDead <= 0) { state.catHp = state.catMaxHp; saveState(); }
+  }
+
+  // attack anim
+  if (attackAnim > 0) attackAnim -= dt;
+  if (attackArc > 0) attackArc -= dt * 4;
+
+  // cat flash
+  if (catFlash > 0) catFlash -= dt;
+
+  // monsters
+  for (const m of monsters) {
+    if (m.hp <= 0) continue;
+    if (m.flash > 0) m.flash -= dt;
+    if (m.x > 130) {
+      m.x -= m.speed * dt;
+    } else {
+      m.atkTimer += dt;
+      if (m.atkTimer >= 2) { m.atkTimer = 0; monsterAttack(m); }
     }
   }
-  return false;
+  monsters = monsters.filter(m => m.hp > 0);
+
+  // chest drops
+  for (const c of chestDrops) {
+    c.timer -= dt;
+    if (c.timer <= 0 && !c.collected) {
+      c.collected = true;
+      state.chests[c.rarity]++;
+      state.gold += c.gold;
+      floatTexts.push({ x: c.x, y: c.y - 10, text: '+' + c.gold + '💰', color: '#FFD700', life: 1.0 });
+      saveState();
+    }
+    if (c.collected || c.timer <= 0) {
+      // fly toward cat
+      c.x += (80 - c.x) * dt * 5;
+      c.y += (80 - c.y) * dt * 5;
+    }
+  }
+  chestDrops = chestDrops.filter(c => !c.collected || Math.abs(c.x - 80) > 5);
+
+  // particles
+  for (const p of particles) {
+    p.x += p.vx * dt; p.y += p.vy * dt; p.life -= dt;
+  }
+  particles = particles.filter(p => p.life > 0);
+
+  // float texts
+  for (const f of floatTexts) { f.y -= 30 * dt; f.life -= dt; }
+  floatTexts = floatTexts.filter(f => f.life > 0);
 }
 
-// ---- Input -------------------------------------------------
-canvas.addEventListener('mousedown', async (e) => {
-  const rect = canvas.getBoundingClientRect();
-  const mx = e.clientX - rect.left;
-  const my = e.clientY - rect.top;
+function render(time) {
+  // background gradient
+  const grad = ctx.createLinearGradient(0, 0, 0, 136);
+  grad.addColorStop(0, '#0d0d1a');
+  grad.addColorStop(1, '#1a1a2e');
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, 500, 136);
 
-  // Top 30px = drag zone
-  if (my < 30 && !modalOpen) {
-    if (window.__TAURI__) {
-      try {
-        const { getCurrentWindow } = window.__TAURI__.window;
-        await getCurrentWindow().startDragging();
-      } catch(err) {}
+  // stars
+  for (const s of stars) {
+    const bri = 0.3 + 0.7 * Math.abs(Math.sin(time * 0.001 + s.phase));
+    ctx.fillStyle = `rgba(255,255,255,${bri})`;
+    ctx.fillRect(Math.floor(s.x), Math.floor(s.y), Math.ceil(s.s), Math.ceil(s.s));
+  }
+
+  // grass
+  ctx.fillStyle = '#1a5c1a';
+  ctx.fillRect(0, 128, 500, 8);
+  for (let i = 0; i < 500; i += 6) {
+    ctx.fillStyle = i % 12 < 6 ? '#2a7a2a' : '#1a6a1a';
+    ctx.fillRect(i, 126, 4, 2);
+  }
+
+  // chest drops
+  for (const c of chestDrops) {
+    const sp = c.rarity === 0 ? CHEST_NORMAL : (c.rarity === 1 ? CHEST_RARE : CHEST_EPIC);
+    const co = c.rarity === 0 ? CHEST_COLORS_N : (c.rarity === 1 ? CHEST_COLORS_R : CHEST_COLORS_E);
+    drawSprite(sp, co, c.x, c.y, 2, false);
+  }
+
+  // monsters
+  for (const m of monsters) {
+    const t = MONSTER_TYPES[m.type];
+    drawSprite(t.sprite, t.colors, m.x, m.y, t.scale, m.flash > 0);
+    // hp bar
+    const w = t.sprite[0].length * t.scale;
+    const hpRatio = m.hp / m.maxHp;
+    ctx.fillStyle = '#333';
+    ctx.fillRect(m.x, m.y - 5, w, 3);
+    ctx.fillStyle = hpRatio > 0.5 ? '#4a4' : '#a44';
+    ctx.fillRect(m.x, m.y - 5, w * hpRatio, 3);
+  }
+
+  // cat
+  const catX = 80, catBaseY = 136 - 16 * 3 - 8;
+  let catY = catBaseY;
+  if (attackAnim > 0) catY -= 2; // slight jump
+  const catVisible = catDead > 0 ? (Math.floor(catDead * 6) % 2 === 0) : true;
+  if (catVisible) {
+    // outfit tint overlay
+    let catColors = {...CAT_COLORS};
+    if (state.outfit === 1) { catColors.O = '#8888cc'; catColors.S = '#6666aa'; } // knight: blue-ish
+    if (state.outfit === 2) { catColors.O = '#cc44ff'; catColors.S = '#aa22dd'; } // magic: purple
+    drawSprite(CAT, catColors, catX, catY, 3, catFlash > 0);
+  }
+
+  // cat hp bar
+  const hpRatio = state.catHp / state.catMaxHp;
+  ctx.fillStyle = '#333';
+  ctx.fillRect(catX, catY - 7, 48, 4);
+  ctx.fillStyle = hpRatio > 0.3 ? '#4c4' : '#c44';
+  ctx.fillRect(catX, catY - 7, 48 * hpRatio, 4);
+
+  // weapon swing arc
+  if (attackArc > 0) {
+    ctx.strokeStyle = `rgba(255,255,255,${attackArc})`;
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    const arcX = catX + 48 + 10;
+    const arcY = catY + 24;
+    ctx.arc(arcX, arcY, 20, -Math.PI * 0.6, Math.PI * 0.3);
+    ctx.stroke();
+    // weapon specific
+    if (state.weapon >= 1) {
+      ctx.strokeStyle = state.weapon === 2 ? `rgba(170,68,255,${attackArc})` : `rgba(200,200,200,${attackArc})`;
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.arc(arcX, arcY, 25, -Math.PI * 0.4, Math.PI * 0.1);
+      ctx.stroke();
     }
-    return;
   }
 
-  if (modalOpen) {
-    handleModalClick(mx, my);
-    return;
+  // particles
+  for (const p of particles) {
+    const a = Math.min(1, p.life * 2);
+    ctx.fillStyle = p.color;
+    ctx.globalAlpha = a;
+    ctx.fillRect(p.x, p.y, 3, 3);
   }
+  ctx.globalAlpha = 1;
 
+  // float texts
+  ctx.textAlign = 'center';
+  for (const f of floatTexts) {
+    const a = Math.min(1, f.life * 2);
+    ctx.globalAlpha = a;
+    ctx.fillStyle = f.color;
+    ctx.font = f.text.includes('LEVEL') ? 'bold 14px monospace' : 'bold 11px monospace';
+    ctx.fillText(f.text, f.x, f.y);
+  }
+  ctx.globalAlpha = 1;
+  ctx.textAlign = 'start';
+}
+
+function gameLoop(now) {
+  try {
+    const dt = Math.min((now - lastTime) / 1000, 0.1);
+    lastTime = now;
+    update(dt);
+    render(now);
+    // update stats
+    document.getElementById('stats').textContent = `💰${state.gold} ⚔️${state.kills} Lv${state.level}`;
+  } catch(e) { console.error(e); }
+  requestAnimationFrame(gameLoop);
+}
+requestAnimationFrame(gameLoop);
+
+// ============ INPUT ============
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') { if (modalOpen) closeModal(); return; }
+  if (modalOpen) return;
   playerAttack();
 });
 
-document.addEventListener('keydown', (e) => {
-  if (e.key === 'Escape' && modalOpen) {
-    closeModal();
-    return;
-  }
-  if (!modalOpen) {
-    playerAttack();
-  }
+canvas.addEventListener('click', () => {
+  if (modalOpen) return;
+  playerAttack();
 });
 
-// ---- Tauri Events ------------------------------------------
-(async function initTauri() {
+document.getElementById('modal').addEventListener('click', (e) => {
+  if (e.target === document.getElementById('modal')) closeModal();
+});
+
+// ============ TAURI ============
+async function hideWindow() {
   if (window.__TAURI__) {
-    try {
-      const { listen } = window.__TAURI__.event;
-      await listen('open-backpack', () => openModal('backpack'));
-      await listen('open-shop', () => openModal('shop'));
-      await listen('reset-data', () => resetData());
-      // Global keyboard/mouse input from Rust
-      let lastGlobalAttack = 0;
-      await listen('global-input', () => {
-        if (modalOpen) return;
-        const now = Date.now();
-        if (now - lastGlobalAttack > 300) { // 300ms throttle
-          lastGlobalAttack = now;
-          playerAttack();
-        }
-      });
-    } catch(err) { console.warn('Tauri event init failed:', err); }
-  }
-})();
-
-// ---- Main Loop ---------------------------------------------
-function update(dt, t) {
-  if (catDead) {
-    catDeadTimer -= dt;
-    if (catDeadTimer <= 0) {
-      catDead = false;
-      game.catHp = game.catMaxHp;
-    }
-    // Monsters idle during death
-  } else {
-    // Monster movement & attack
-    for (const m of monsters) {
-      const dist = m.x - CAT_X - CAT_W;
-      if (dist > 10) {
-        m.x -= m.type.speed * dt;
-      } else {
-        // Attack cat
-        m.atkTimer += dt;
-        if (m.atkTimer >= 2) {
-          m.atkTimer = 0;
-          game.catHp = Math.max(0, (game.catHp || 0) - 10);
-          catHitFlash = 0.3;
-          effects.push({ type:'text', x: CAT_X + 20, y: CAT_Y - 10, text: '-10', color:'#ff4444', life:0.8 });
-          if (game.catHp <= 0) {
-            catDead = true;
-            catDeadTimer = 3;
-          }
-        }
-      }
-      if (m.hitFlash > 0) m.hitFlash -= dt;
-    }
-  }
-
-  // Remove dead monsters
-  for (let i = monsters.length - 1; i >= 0; i--) {
-    if (monsters[i].hp <= 0) {
-      const m = monsters[i];
-      game.kills++;
-      addXp(m.type.xp);
-      // Drop chest
-      if (Math.random() < 0.8) {
-        const rarity = Math.random() < 0.05 ? 2 : Math.random() < 0.2 ? 1 : 0;
-        chestDrops.push({ x: m.x, y: GROUND_Y - 36, rarity, timer: 2.0 });
-      }
-      effects.push({ type:'text', x: m.x, y: GROUND_Y - 55, text: '+' + m.type.xp + 'xp', color:'#88ccff', life:1.0 });
-      monsters.splice(i, 1);
-    }
-  }
-
-  // Monster spawn
-  lastSpawn += dt;
-  if (lastSpawn >= 4 && monsters.length < 4) {
-    spawnMonster();
-    lastSpawn = 0;
-  }
-
-  // Chest collection
-  for (let i = chestDrops.length - 1; i >= 0; i--) {
-    const c = chestDrops[i];
-    c.timer -= dt;
-    if (c.timer <= 0) {
-      // Fly toward cat
-      const dx = CAT_X - c.x;
-      const dy = CAT_Y - c.y;
-      const dist = Math.sqrt(dx*dx + dy*dy);
-      if (dist < 20) {
-        game.chests[c.rarity] = (game.chests[c.rarity] || 0) + 1;
-        const names = ['+普通宝箱', '+稀有宝箱', '+史诗宝箱'];
-        const clrs = ['#a07040', '#4080c0', '#9040c0'];
-        effects.push({ type:'text', x: CAT_X, y: CAT_Y - 15, text: names[c.rarity], color: clrs[c.rarity], life:1.0 });
-        chestDrops.splice(i, 1);
-      } else {
-        c.x += (dx / dist) * 200 * dt;
-        c.y += (dy / dist) * 200 * dt;
-      }
-    }
-  }
-
-  // Effects decay
-  for (let i = effects.length - 1; i >= 0; i--) {
-    const e = effects[i];
-    e.life -= dt * 2;
-    if (e.type === 'text') e.y -= 20 * dt;
-    if (e.life <= 0) effects.splice(i, 1);
-  }
-
-  // Attack arc decay
-  if (attackArc > 0) attackArc -= dt;
-  if (catHitFlash > 0) catHitFlash -= dt;
-
-  // Save periodically
-  saveTimer += dt;
-  if (saveTimer >= 5) {
-    saveTimer = 0;
-    saveData();
+    await window.__TAURI__.window.getCurrentWindow().hide();
   }
 }
 
-function render(t) {
-  ctx.clearRect(0, 0, W, H);
-  drawBackground(t);
-  drawChests(t);
-  drawMonsters(t);
-  drawCat(t);
-  drawEffects(t);
-  drawHUD();
-  if (modalOpen) drawModal();
+if (window.__TAURI__) {
+  const { listen } = window.__TAURI__.event;
+  listen('open-backpack', () => openModal('backpack'));
+  listen('open-shop', () => openModal('shop'));
+  listen('reset-data', () => resetData());
+  let lastGlobal = 0;
+  listen('global-input', () => {
+    if (modalOpen) return;
+    const now = Date.now();
+    if (now - lastGlobal > 300) { lastGlobal = now; playerAttack(); }
+  });
 }
-
-function gameLoop(timestamp) {
-  try {
-    const t = timestamp / 1000;
-    const dt = lastTime ? Math.min(t - lastTime, 0.1) : 0.016;
-    lastTime = t;
-    update(dt, t);
-    render(t);
-  } catch(e) {
-    console.error('Game loop error:', e);
-  }
-  requestAnimationFrame(gameLoop);
-}
-
-// ---- Start -------------------------------------------------
-requestAnimationFrame(gameLoop);
-// Spawn first monster quickly
-setTimeout(() => { if (monsters.length === 0) spawnMonster(); }, 1000);
-
 </script>
 </body>
 </html>
