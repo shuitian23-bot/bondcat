@@ -593,6 +593,16 @@ document.addEventListener('keydown', (e) => {
       await listen('open-backpack', () => openModal('backpack'));
       await listen('open-shop', () => openModal('shop'));
       await listen('reset-data', () => resetData());
+      // Global keyboard/mouse input from Rust
+      let lastGlobalAttack = 0;
+      await listen('global-input', () => {
+        if (modalOpen) return;
+        const now = Date.now();
+        if (now - lastGlobalAttack > 300) { // 300ms throttle
+          lastGlobalAttack = now;
+          playerAttack();
+        }
+      });
     } catch(err) { console.warn('Tauri event init failed:', err); }
   }
 })();

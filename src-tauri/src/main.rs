@@ -5,6 +5,9 @@ use tauri::{
     tray::TrayIconBuilder,
     Emitter, Manager,
 };
+use std::thread;
+use std::sync::atomic::{AtomicU64, Ordering};
+use std::time::{SystemTime, UNIX_EPOCH};
 
 fn main() {
     tauri::Builder::default()
@@ -51,6 +54,36 @@ fn main() {
                     }
                 })
                 .build(app)?;
+
+            // Global keyboard/mouse listener (throttled)
+            let app_handle = app.handle().clone();
+            thread::spawn(move || {
+                use rdev::{listen, Event, EventType};
+                static LAST_EMIT: AtomicU64 = AtomicU64::new(0);
+                let callback = move |event: Event| {
+                    let dominated = match event.event_type {
+                        EventType::KeyPress(_) | EventType::ButtonPress(_) => true,
+                        EventType::MouseMove { .. } => {
+                            // Throttle mouse move to 1 per 500ms
+                            let now = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_millis() as u64;
+                            let last = LAST_EMIT.load(Ordering::Relaxed);
+                            if now - last > 500 {
+                                LAST_EMIT.store(now, Ordering::Relaxed);
+                                true
+                            } else {
+                                false
+                            }
+                        }
+                        _ => false,
+                    };
+                    if dominated {
+                        let _ = app_handle.emit("global-input", ());
+                    }
+                };
+                if let Err(error) = listen(callback) {
+                    eprintln!("Global listener error: {:?}", error);
+                }
+            });
 
             Ok(())
         })
