@@ -6,10 +6,8 @@ use tauri::{
     Emitter, Manager,
 };
 use std::thread;
-use std::panic;
-use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::Arc;
 use std::time::Duration;
+use device_query::{DeviceQuery, DeviceState, MouseState};
 
 fn main() {
     tauri::Builder::default()
@@ -57,50 +55,48 @@ fn main() {
                 })
                 .build(app)?;
 
-            // Position window at bottom-center of screen
+            // Position window at bottom-center
             let window = app.get_webview_window("main").unwrap();
             if let Ok(Some(monitor)) = window.current_monitor() {
                 let screen = monitor.size();
                 let scale = monitor.scale_factor();
                 let sw = (screen.width as f64 / scale) as i32;
                 let sh = (screen.height as f64 / scale) as i32;
-                let ww = 500;
-                let wh = 160;
-                let x = (sw - ww) / 2;
-                let y = sh - wh - 80; // above dock
+                let x = (sw - 500) / 2;
+                let y = sh - 160 - 80;
                 let _ = window.set_position(tauri::LogicalPosition::new(x as f64, y as f64));
             }
 
-            // Global input: rdev sets flag, polling thread emits
-            let input_flag = Arc::new(AtomicBool::new(false));
-            let flag_writer = input_flag.clone();
-
-            thread::spawn(move || {
-                let result = panic::catch_unwind(|| {
-                    use rdev::{listen, Event, EventType};
-                    let flag = flag_writer;
-                    let _ = listen(move |event: Event| {
-                        match event.event_type {
-                            EventType::KeyPress(_) | EventType::ButtonPress(_) => {
-                                flag.store(true, Ordering::Relaxed);
-                            }
-                            _ => {}
-                        }
-                    });
-                });
-                if result.is_err() {
-                    eprintln!("rdev failed - grant Accessibility permission in System Settings");
-                }
-            });
-
+            // Global input polling with device_query
             let app_handle = app.handle().clone();
-            let flag_reader = input_flag;
             thread::spawn(move || {
+                let device = DeviceState::new();
+                let mut prev_keys_count = 0usize;
+                let mut prev_buttons: Vec<bool> = vec![];
                 loop {
-                    thread::sleep(Duration::from_millis(150));
-                    if flag_reader.swap(false, Ordering::Relaxed) {
+                    thread::sleep(Duration::from_millis(100));
+
+                    // Check keyboard
+                    let keys = device.get_keys();
+                    let cur_count = keys.len();
+                    if cur_count > prev_keys_count {
+                        // New key pressed
                         let _ = app_handle.emit("global-input", ());
                     }
+                    prev_keys_count = cur_count;
+
+                    // Check mouse buttons
+                    let mouse: MouseState = device.get_mouse();
+                    let cur_buttons: Vec<bool> = mouse.button_pressed.clone();
+                    if cur_buttons.len() > 0 && prev_buttons.len() > 0 {
+                        for i in 0..cur_buttons.len().min(prev_buttons.len()) {
+                            if cur_buttons[i] && !prev_buttons[i] {
+                                let _ = app_handle.emit("global-input", ());
+                                break;
+                            }
+                        }
+                    }
+                    prev_buttons = cur_buttons;
                 }
             });
 
