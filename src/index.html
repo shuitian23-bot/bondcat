@@ -415,6 +415,18 @@ window.addEventListener('keydown', (e) => {
   doAttack();
 });
 
+
+// Mouse move also triggers attack (throttled)
+let lastMoveAttack = 0;
+window.addEventListener('mousemove', (e) => {
+  if (modalOpen) return;
+  const now = Date.now();
+  if (now - lastMoveAttack > 400) {
+    lastMoveAttack = now;
+    doAttack();
+  }
+});
+
 canvas.addEventListener('click', (e) => {
   if (modalOpen) {
     // Check if click is outside modal area to close
