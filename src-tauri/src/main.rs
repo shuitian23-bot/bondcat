@@ -7,7 +7,7 @@ use tauri::{
 };
 use std::thread;
 use std::time::Duration;
-use device_query::{DeviceQuery, DeviceState, MouseState};
+use device_query::{DeviceQuery, DeviceState, Keycode, MouseState};
 
 fn main() {
     tauri::Builder::default()
@@ -71,32 +71,54 @@ fn main() {
             let app_handle = app.handle().clone();
             thread::spawn(move || {
                 let device = DeviceState::new();
-                let mut prev_keys_count = 0usize;
+                let mut prev_keys: Vec<Keycode> = vec![];
+                let mut prev_mouse_x: i32 = 0;
+                let mut prev_mouse_y: i32 = 0;
                 let mut prev_buttons: Vec<bool> = vec![];
+                
                 loop {
-                    thread::sleep(Duration::from_millis(100));
+                    thread::sleep(Duration::from_millis(30));
 
-                    // Check keyboard
+                    let mut triggered = false;
+
+                    // Check keyboard - detect ANY new key not in previous set
                     let keys = device.get_keys();
-                    let cur_count = keys.len();
-                    if cur_count > prev_keys_count {
-                        // New key pressed
-                        let _ = app_handle.emit("global-input", ());
-                    }
-                    prev_keys_count = cur_count;
-
-                    // Check mouse buttons
-                    let mouse: MouseState = device.get_mouse();
-                    let cur_buttons: Vec<bool> = mouse.button_pressed.clone();
-                    if cur_buttons.len() > 0 && prev_buttons.len() > 0 {
-                        for i in 0..cur_buttons.len().min(prev_buttons.len()) {
-                            if cur_buttons[i] && !prev_buttons[i] {
-                                let _ = app_handle.emit("global-input", ());
-                                break;
-                            }
+                    for key in &keys {
+                        if !prev_keys.contains(key) {
+                            triggered = true;
+                            break;
                         }
                     }
-                    prev_buttons = cur_buttons;
+                    prev_keys = keys;
+
+                    // Check mouse movement (threshold: 5px to avoid noise)
+                    if !triggered {
+                        let mouse: MouseState = device.get_mouse();
+                        let dx = (mouse.coords.0 - prev_mouse_x).abs();
+                        let dy = (mouse.coords.1 - prev_mouse_y).abs();
+                        if dx > 5 || dy > 5 {
+                            triggered = true;
+                        }
+                        prev_mouse_x = mouse.coords.0;
+                        prev_mouse_y = mouse.coords.1;
+
+                        // Check mouse buttons
+                        if !triggered {
+                            let cur_buttons: Vec<bool> = mouse.button_pressed.clone();
+                            let len = cur_buttons.len().min(prev_buttons.len());
+                            for i in 0..len {
+                                if cur_buttons[i] && !prev_buttons[i] {
+                                    triggered = true;
+                                    break;
+                                }
+                            }
+                            prev_buttons = cur_buttons;
+                        }
+                    }
+
+                    if triggered {
+                        let _ = app_handle.emit("global-input", ());
+                    }
                 }
             });
 
