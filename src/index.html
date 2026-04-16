@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=500, height=160">
-<title>邦德猫 v0.3.2</title>
+<title>邦德猫 v0.3.3</title>
 <style>
 * { margin:0; padding:0; box-sizing:border-box; }
 body { width:500px; height:160px; overflow:hidden; background:transparent; font-family:'Segoe UI',sans-serif; user-select:none; }
@@ -29,7 +29,7 @@ canvas { display:block; }
 #modal.open { display:flex; }
 #modal .panel {
   background:#1a1a2e; border:2px solid #f0a040; border-radius:8px; padding:12px 16px;
-  min-width:320px; max-width:460px; color:#eee; font-size:11px;
+  min-width:320px; max-width:460px; max-height:130px; overflow-y:auto; color:#eee; font-size:11px;
 }
 #modal .panel h3 { color:#f0a040; font-size:13px; margin-bottom:8px; text-align:center; }
 #modal .panel .row { display:flex; justify-content:space-between; align-items:center; padding:3px 0; border-bottom:1px solid #222; }
@@ -46,7 +46,7 @@ canvas { display:block; }
 </head>
 <body>
 <div id="titlebar" data-tauri-drag-region>
-  <span class="title" data-tauri-drag-region>邦德猫 v0.3.2</span>
+  <span class="title" data-tauri-drag-region>邦德猫 v0.3.3</span>
   <span class="stats" id="stats" data-tauri-drag-region></span>
   <div class="btns">
     <button onclick="openModal('backpack')">📦</button>
@@ -589,7 +589,7 @@ if (window.__TAURI__) {
   listen('global-input', () => {
     if (modalOpen) return;
     const now = Date.now();
-    if (now - lastGlobal > 300) { lastGlobal = now; playerAttack(); }
+    if (now - lastGlobal > 150) { lastGlobal = now; playerAttack(); }
   });
 }
 </script>
