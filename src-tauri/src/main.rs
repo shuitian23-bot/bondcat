@@ -38,7 +38,14 @@ mod macos {
             events_of_interest: CGEventMask,
             callback: TapCallback, user_info: *mut c_void,
         ) -> *mut c_void;
+        pub fn CGEventTapEnable(tap: *mut c_void, enable: bool);
     }
+
+    #[link(name = "IOKit", kind = "framework")]
+    extern "C" {
+        pub fn IOHIDRequestAccess(request_type: u32) -> bool;
+    }
+    pub const K_IOHID_REQUEST_TYPE_LISTEN_EVENT: u32 = 1;
 
     #[link(name = "CoreFoundation", kind = "framework")]
     extern "C" {
@@ -54,6 +61,21 @@ mod macos {
     #[link(name = "ApplicationServices", kind = "framework")]
     extern "C" {
         pub fn AXIsProcessTrusted() -> bool;
+        pub fn AXIsProcessTrustedWithOptions(options: *const c_void) -> bool;
+    }
+
+    #[link(name = "CoreFoundation", kind = "framework")]
+    extern "C" {
+        pub fn CFDictionaryCreate(
+            allocator: *const c_void, keys: *const *const c_void, values: *const *const c_void,
+            num_values: i64, key_callbacks: *const c_void, value_callbacks: *const c_void,
+        ) -> *const c_void;
+        pub fn CFBooleanGetValue(b: *const c_void) -> bool;
+        pub static kCFBooleanTrue: *const c_void;
+    }
+
+    extern "C" {
+        pub static kAXTrustedCheckOptionPrompt: *const c_void;
     }
 }
 
@@ -126,7 +148,22 @@ fn main() {
             // ---- Global input via CGEventTap ----
             #[cfg(target_os = "macos")]
             {
-                let trusted = unsafe { macos::AXIsProcessTrusted() };
+                // Trigger native Accessibility prompt via AXIsProcessTrustedWithOptions
+                let trusted = unsafe {
+                    let keys = [macos::kAXTrustedCheckOptionPrompt];
+                    let values = [macos::kCFBooleanTrue];
+                    let opts = macos::CFDictionaryCreate(
+                        std::ptr::null(),
+                        keys.as_ptr(),
+                        values.as_ptr(),
+                        1,
+                        std::ptr::null(),
+                        std::ptr::null(),
+                    );
+                    macos::AXIsProcessTrustedWithOptions(opts)
+                };
+                // Trigger native Input Monitoring prompt
+                unsafe { macos::IOHIDRequestAccess(macos::K_IOHID_REQUEST_TYPE_LISTEN_EVENT); }
                 let app_handle = app.handle().clone();
 
                 if !trusted {
@@ -154,6 +191,7 @@ fn main() {
                             return;
                         }
 
+                        macos::CGEventTapEnable(tap, true);
                         let _ = app_handle.emit("input-tap-ok", ());
 
                         let source = macos::CFMachPortCreateRunLoopSource(
@@ -166,12 +204,17 @@ fn main() {
                         let h2 = app_handle.clone();
                         thread::spawn(move || {
                             let mut last = 0u64;
+                            let mut tick = 0u64;
                             loop {
                                 thread::sleep(Duration::from_millis(30));
                                 let cur = INPUT_COUNTER.load(Ordering::Relaxed);
                                 if cur != last {
-                                    let _ = h2.emit("global-input", ());
+                                    let _ = h2.emit("global-input", cur);
                                     last = cur;
+                                }
+                                tick += 1;
+                                if tick % 30 == 0 { // every ~900ms, debug heartbeat
+                                    let _ = h2.emit("input-heartbeat", cur);
                                 }
                             }
                         });

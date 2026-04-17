@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=500, height=160">
-<title>邦德猫 v0.3.5</title>
+<title>邦德猫 v0.3.6</title>
 <style>
 * { margin:0; padding:0; box-sizing:border-box; }
 body { width:500px; height:160px; overflow:hidden; background:transparent; font-family:'Segoe UI',sans-serif; user-select:none; }
@@ -46,7 +46,7 @@ canvas { display:block; }
 </head>
 <body>
 <div id="titlebar" data-tauri-drag-region>
-  <span class="title" data-tauri-drag-region>邦德猫 v0.3.5</span>
+  <span class="title" data-tauri-drag-region>邦德猫 v0.3.6</span>
   <span class="stats" id="stats" data-tauri-drag-region></span>
   <div class="btns">
     <button onclick="openModal('backpack')">📦</button>
@@ -556,7 +556,7 @@ function gameLoop(now) {
     update(dt);
     render(now);
     // update stats
-    document.getElementById('stats').textContent = `💰${state.gold} ⚔️${state.kills} Lv${state.level}`;
+    document.getElementById('stats').textContent = `💰${state.gold} ⚔️${state.kills} Lv${state.level} 🎯${window.inputHits||0}`;
   } catch(e) { console.error(e); }
   requestAnimationFrame(gameLoop);
 }
@@ -591,10 +591,15 @@ if (window.__TAURI__) {
   listen('open-shop', () => openModal('shop'));
   listen('reset-data', () => resetData());
   let lastGlobal = 0;
-  listen('global-input', () => {
+  window.inputHits = 0;
+  listen('global-input', (e) => {
+    window.inputHits = typeof e.payload === 'number' ? e.payload : (window.inputHits + 1);
     if (modalOpen) return;
     const now = Date.now();
     if (now - lastGlobal > 150) { lastGlobal = now; playerAttack(); }
+  });
+  listen('input-heartbeat', (e) => {
+    if (typeof e.payload === 'number') window.inputHits = e.payload;
   });
 }
 

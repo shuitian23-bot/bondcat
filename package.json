@@ -1,6 +1,6 @@
 {
   "name": "bondcat",
-  "version": "0.3.5",
+  "version": "0.3.6",
   "description": "像素邦德小猫·敲敲打宝 - 桌面悬浮像素养成游戏",
   "scripts": {
     "tauri": "tauri",
