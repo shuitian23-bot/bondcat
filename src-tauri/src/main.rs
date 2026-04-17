@@ -68,9 +68,17 @@ unsafe extern "C" fn on_event(
     event
 }
 
+#[tauri::command]
+fn open_ax_settings() {
+    let _ = std::process::Command::new("open")
+        .arg("x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility")
+        .spawn();
+}
+
 fn main() {
     tauri::Builder::default()
         .plugin(tauri_plugin_shell::init())
+        .invoke_handler(tauri::generate_handler![open_ax_settings])
         .setup(|app| {
             let show = MenuItem::with_id(app, "show", "显示/隐藏", true, None::<&str>)?;
             let backpack = MenuItem::with_id(app, "backpack", "背包", true, None::<&str>)?;

@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=500, height=160">
-<title>邦德猫 v0.3.4</title>
+<title>邦德猫 v0.3.5</title>
 <style>
 * { margin:0; padding:0; box-sizing:border-box; }
 body { width:500px; height:160px; overflow:hidden; background:transparent; font-family:'Segoe UI',sans-serif; user-select:none; }
@@ -46,7 +46,7 @@ canvas { display:block; }
 </head>
 <body>
 <div id="titlebar" data-tauri-drag-region>
-  <span class="title" data-tauri-drag-region>邦德猫 v0.3.4</span>
+  <span class="title" data-tauri-drag-region>邦德猫 v0.3.5</span>
   <span class="stats" id="stats" data-tauri-drag-region></span>
   <div class="btns">
     <button onclick="openModal('backpack')">📦</button>
@@ -601,7 +601,8 @@ if (window.__TAURI__) {
 // Accessibility permission
 async function openAxSettings() {
   if (window.__TAURI__) {
-    await window.__TAURI__.shell.open('x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility');
+    try { await window.__TAURI__.core.invoke('open_ax_settings'); }
+    catch (e) { console.error('open_ax_settings failed', e); }
   }
 }
 
