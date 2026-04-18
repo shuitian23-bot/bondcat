@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=500, height=160">
-<title>邦德猫 v0.4.1</title>
+<title>邦德猫 v0.4.2</title>
 <style>
 * { margin:0; padding:0; box-sizing:border-box; }
 body { width:500px; height:160px; overflow:hidden; background:transparent; font-family:'Segoe UI',sans-serif; user-select:none; }
@@ -49,7 +49,7 @@ canvas { display:block; }
 </head>
 <body>
 <div id="titlebar" data-tauri-drag-region>
-  <span class="title" data-tauri-drag-region>邦德猫 v0.4.1</span>
+  <span class="title" data-tauri-drag-region>邦德猫 v0.4.2</span>
   <span class="stats" id="stats" data-tauri-drag-region></span>
   <div class="btns">
     <button onclick="openModal('backpack')">📦</button>
@@ -800,6 +800,7 @@ if (window.__TAURI__) {
   listen('reset-data', () => resetData());
   let lastGlobal = 0;
   window.inputHits = 0;
+  window.tapStatus = 'pending';
   listen('global-input', (e) => {
     window.inputHits = typeof e.payload === 'number' ? e.payload : (window.inputHits + 1);
     if (modalOpen) return;
@@ -821,12 +822,12 @@ async function openAxSettings() {
 
 if (window.__TAURI__) {
   const { listen: listenAx } = window.__TAURI__.event;
-  listenAx('accessibility-needed', () => { document.getElementById('axwarn').style.display = 'block'; });
-  listenAx('input-tap-failed', () => {
+  listenAx('accessibility-needed', () => { document.getElementById('axwarn').style.display = 'block'; window.tapStatus = 'pending'; });
+  listenAx('input-tap-failed', () => { window.tapStatus = 'fail';
     const w = document.getElementById('axwarn');
     w.style.display = 'block';
   });
-  listenAx('input-tap-ok', () => { document.getElementById('axwarn').style.display = 'none'; });
+  listenAx('input-tap-ok', () => { document.getElementById('axwarn').style.display = 'none'; window.tapStatus = 'ok'; });
 }
 </script>
 </body>
