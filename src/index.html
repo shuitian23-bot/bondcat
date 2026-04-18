@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=500, height=160">
-<title>邦德猫 v0.3.22</title>
+<title>邦德猫 v0.3.23</title>
 <style>
 * { margin:0; padding:0; box-sizing:border-box; }
 body { width:500px; height:160px; overflow:hidden; background:transparent; font-family:'Segoe UI',sans-serif; user-select:none; }
@@ -46,7 +46,7 @@ canvas { display:block; }
 </head>
 <body>
 <div id="titlebar" data-tauri-drag-region>
-  <span class="title" data-tauri-drag-region>邦德猫 v0.3.22</span>
+  <span class="title" data-tauri-drag-region>邦德猫 v0.3.23</span>
   <span class="stats" id="stats" data-tauri-drag-region></span>
   <div class="btns">
     <button onclick="openModal('backpack')">📦</button>
@@ -194,13 +194,18 @@ function spawnMonster() {
   const typeIdx = pickMonsterType();
   const t = MONSTER_TYPES[typeIdx];
   const hpMult = 1 + (state.level - 1) * 0.3;
+  const isElite = !t.isBoss && Math.random() < 0.1;
+  const eliteHp = isElite ? 2 : 1;
+  const finalHp = Math.ceil(t.hp * hpMult * eliteHp);
   monsters.push({
     type: typeIdx, x: 360 + Math.random() * 100, y: 136 - t.size - 8,
-    hp: Math.ceil(t.hp * hpMult), maxHp: Math.ceil(t.hp * hpMult),
+    hp: finalHp, maxHp: finalHp, elite: isElite,
     speed: t.isBoss ? 12 : (25 + Math.random() * 10), flash: 0, atkTimer: 0,
   });
   if (t.isBoss) {
     floatTexts.push({ x: 250, y: 30, text: '⚠ BOSS 来袭!', color: '#ff4040', life: 2.0 });
+  } else if (isElite) {
+    floatTexts.push({ x: 250, y: 30, text: '✨ 精英怪!', color: '#ffd700', life: 1.5 });
   }
 }
 
@@ -287,7 +292,7 @@ function killMonster(m) {
     const r = Math.random();
     const rarity = r < 0.6 ? 0 : (r < 0.9 ? 1 : 2);
     const greedBuff = 1 + (state.skills.greed * 0.1); const gold = Math.ceil((t.goldMin + Math.floor(Math.random() * (t.goldMax - t.goldMin + 1))) * greedBuff);
-    chestDrops.push({ x: m.x, y: m.y, rarity, gold, timer: 2.0, collected: false });
+    chestDrops.push({ x: m.x, y: m.y, rarity, gold: m.elite ? gold * 3 : gold, timer: 2.0, collected: false });
   }
   saveState();
 }
@@ -527,8 +532,9 @@ function update(dt) {
     }
     if (c.collected || c.timer <= 0) {
       // fly toward cat
-      c.x += (80 - c.x) * dt * 5;
-      c.y += (80 - c.y) * dt * 5;
+      const pullSpeed = 5 + Math.max(0, state.skills.luck) * 0.5;
+      c.x += (80 - c.x) * dt * pullSpeed;
+      c.y += (80 - c.y) * dt * pullSpeed;
     }
   }
   chestDrops = chestDrops.filter(c => !c.collected || Math.abs(c.x - 80) > 5);
@@ -638,6 +644,15 @@ function render(time) {
   for (const m of monsters) {
     const t = MONSTER_TYPES[m.type];
     drawImg(IMG[t.img], m.x, m.y, t.size, t.size, m.flash > 0);
+    if (m.elite) {
+      // gold sparkle tint
+      ctx.save();
+      ctx.globalCompositeOperation = 'source-atop';
+      ctx.globalAlpha = 0.35 + 0.15 * Math.sin(time * 0.008);
+      ctx.fillStyle = '#ffd700';
+      ctx.fillRect(m.x, m.y, t.size, t.size);
+      ctx.restore();
+    }
     // hp bar
     const w = t.size;
     const hpRatio = m.hp / m.maxHp;
