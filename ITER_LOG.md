@@ -38,3 +38,10 @@
 - 猫装扮色 via canvas composite source-atop 覆色
 - 地面改 PNG tile 平铺
 - flash 击中效果: source-atop 白色半透明覆盖
+
+## iter 8 (v0.3.14) — 2026-04-18
+- **Combo 系统**: 连击计数+2s窗口重置
+- 阶梯加成: 5x=1.5倍,10x=2倍,20x=3倍,30x=4倍
+- 视觉: 伤害数字颜色分层(白/青/金),里程碑弹 "COMBO x5!"
+- HUD: 标题栏显示 🔥5x2 (连击数x倍数)
+- 去掉诊断 🎯 计数,加 combo 显示

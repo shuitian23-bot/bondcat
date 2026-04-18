@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=500, height=160">
-<title>邦德猫 v0.3.13</title>
+<title>邦德猫 v0.3.14</title>
 <style>
 * { margin:0; padding:0; box-sizing:border-box; }
 body { width:500px; height:160px; overflow:hidden; background:transparent; font-family:'Segoe UI',sans-serif; user-select:none; }
@@ -46,7 +46,7 @@ canvas { display:block; }
 </head>
 <body>
 <div id="titlebar" data-tauri-drag-region>
-  <span class="title" data-tauri-drag-region>邦德猫 v0.3.13</span>
+  <span class="title" data-tauri-drag-region>邦德猫 v0.3.14</span>
   <span class="stats" id="stats" data-tauri-drag-region></span>
   <div class="btns">
     <button onclick="openModal('backpack')">📦</button>
@@ -142,6 +142,9 @@ let chestDrops = [];
 let attackAnim = 0;
 let attackArc = 0;
 let catFlash = 0;
+let comboCount = 0;
+let comboTimer = 0;
+let lastComboMilestone = 0;
 let catDead = 0;
 let spawnTimer = 0;
 let modalOpen = false;
@@ -171,31 +174,38 @@ function spawnMonster() {
 }
 
 // ============ ATTACK ============
+function comboMultiplier() {
+  if (comboCount >= 30) return 4;
+  if (comboCount >= 20) return 3;
+  if (comboCount >= 10) return 2;
+  if (comboCount >= 5) return 1.5;
+  return 1;
+}
+
 function playerAttack() {
   if (catDead > 0) return;
   attackAnim = 0.3;
   attackArc = 1.0;
-  const dmg = WEAPONS[state.weapon].dmg + Math.floor(state.level * 0.5);
-  let hit = false;
-  for (const m of monsters) {
-    if (m.x < 200) {
-      m.hp -= dmg;
-      m.flash = 0.15;
-      hit = true;
-      floatTexts.push({ x: m.x + 10, y: m.y - 5, text: '-' + dmg, color: '#ffffff', life: 0.8 });
-      if (m.hp <= 0) {
-        killMonster(m);
-      }
-      break;
-    }
-  }
-  if (!hit) {
-    for (const m of monsters) {
-      if (m.x < 300) {
-        m.hp -= dmg;
-        m.flash = 0.15;
-        floatTexts.push({ x: m.x + 10, y: m.y - 5, text: '-' + dmg, color: '#ffffff', life: 0.8 });
-        if (m.hp <= 0) killMonster(m);
+  const mult = comboMultiplier();
+  const base = WEAPONS[state.weapon].dmg + Math.floor(state.level * 0.5);
+  const dmg = Math.ceil(base * mult);
+  let hit = false, target = null;
+  for (const m of monsters) { if (m.x < 200) { target = m; break; } }
+  if (!target) for (const m of monsters) { if (m.x < 300) { target = m; break; } }
+  if (target) {
+    target.hp -= dmg;
+    target.flash = 0.15;
+    hit = true;
+    const hitColor = mult >= 2 ? '#ffff40' : (mult >= 1.5 ? '#80ffff' : '#ffffff');
+    floatTexts.push({ x: target.x + 10, y: target.y - 5, text: '-' + dmg, color: hitColor, life: 0.8 });
+    if (target.hp <= 0) killMonster(target);
+    comboCount++;
+    comboTimer = 2.0;
+    const milestones = [5,10,20,30];
+    for (const ms of milestones) {
+      if (comboCount === ms && lastComboMilestone < ms) {
+        lastComboMilestone = ms;
+        floatTexts.push({ x: 250, y: 50, text: 'COMBO x' + ms + '!', color: '#ffff00', life: 1.5 });
         break;
       }
     }
@@ -336,6 +346,12 @@ function update(dt) {
   // attack anim
   if (attackAnim > 0) attackAnim -= dt;
   if (attackArc > 0) attackArc -= dt * 4;
+
+  // combo timer (resets combo if no hit in 2s)
+  if (comboTimer > 0) {
+    comboTimer -= dt;
+    if (comboTimer <= 0) { comboCount = 0; lastComboMilestone = 0; }
+  }
 
   // cat flash
   if (catFlash > 0) catFlash -= dt;
@@ -496,7 +512,8 @@ function gameLoop(now) {
     update(dt);
     render(now);
     // update stats
-    document.getElementById('stats').textContent = `💰${state.gold} ⚔️${state.kills} Lv${state.level} 🎯${window.inputHits||0}`;
+    const comboStr = comboCount >= 2 ? ` 🔥${comboCount}x${comboMultiplier()}` : '';
+    document.getElementById('stats').textContent = `💰${state.gold} ⚔️${state.kills} Lv${state.level}${comboStr}`;
   } catch(e) { console.error(e); }
   requestAnimationFrame(gameLoop);
 }
