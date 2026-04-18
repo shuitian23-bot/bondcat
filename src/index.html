@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=500, height=160">
-<title>邦德猫 v0.4.3</title>
+<title>邦德猫 v0.4.4</title>
 <style>
 * { margin:0; padding:0; box-sizing:border-box; }
 body { width:500px; height:160px; overflow:hidden; background:transparent; font-family:'Segoe UI',sans-serif; user-select:none; }
@@ -49,7 +49,7 @@ canvas { display:block; }
 </head>
 <body>
 <div id="titlebar" data-tauri-drag-region>
-  <span class="title" data-tauri-drag-region>邦德猫 v0.4.3</span>
+  <span class="title" data-tauri-drag-region>邦德猫 v0.4.4</span>
   <span class="stats" id="stats" data-tauri-drag-region></span>
   <div class="btns">
     <button onclick="openModal('backpack')">📦</button>
@@ -765,8 +765,7 @@ function gameLoop(now) {
     if (window._achTick % 60 === 0) checkAchievements();
     const xpNeeded = state.level * 15; const xpPct = Math.min(100, (state.xp / xpNeeded) * 100); document.getElementById('xpbar').style.width = xpPct + '%';
     const tapIcon = window.tapStatus === 'ok' ? '🟢' : (window.tapStatus === 'fail' ? '🔴' : '🟡');
-    const hits = window.inputHits || 0;
-    document.getElementById('stats').textContent = `💰${state.gold} ⚔️${state.kills} Lv${state.level}${comboStr} ${tapIcon}${hits}`;
+    document.getElementById('stats').textContent = `💰${state.gold} ⚔️${state.kills} Lv${state.level}${comboStr} ${tapIcon}⌨${window.keyHits||0}🖱${window.mouseHits||0}`;
   } catch(e) { console.error(e); }
   requestAnimationFrame(gameLoop);
 }
@@ -801,16 +800,17 @@ if (window.__TAURI__) {
   listen('open-shop', () => openModal('shop'));
   listen('reset-data', () => resetData());
   let lastGlobal = 0;
-  window.inputHits = 0;
+  window.keyHits = 0;
+  window.mouseHits = 0;
   window.tapStatus = 'pending';
   listen('global-input', (e) => {
-    window.inputHits = typeof e.payload === 'number' ? e.payload : (window.inputHits + 1);
+    // counter updated via heartbeat
     if (modalOpen) return;
     const now = Date.now();
     if (now - lastGlobal > 150) { lastGlobal = now; playerAttack(); }
   });
   listen('input-heartbeat', (e) => {
-    if (typeof e.payload === 'number') window.inputHits = e.payload;
+    if (e.payload && typeof e.payload === 'object') { window.keyHits = e.payload.k || 0; window.mouseHits = e.payload.m || 0; }
   });
 }
 

@@ -79,14 +79,19 @@ mod macos {
     }
 }
 
-static INPUT_COUNTER: AtomicU64 = AtomicU64::new(0);
+static KEY_COUNTER: AtomicU64 = AtomicU64::new(0);
+static MOUSE_COUNTER: AtomicU64 = AtomicU64::new(0);
 
 #[cfg(target_os = "macos")]
 unsafe extern "C" fn on_event(
-    _proxy: *mut c_void, _etype: macos::CGEventType,
+    _proxy: *mut c_void, etype: macos::CGEventType,
     event: macos::CGEventRef, _info: *mut c_void,
 ) -> macos::CGEventRef {
-    INPUT_COUNTER.fetch_add(1, Ordering::Relaxed);
+    if etype == macos::KEY_DOWN {
+        KEY_COUNTER.fetch_add(1, Ordering::Relaxed);
+    } else {
+        MOUSE_COUNTER.fetch_add(1, Ordering::Relaxed);
+    }
     event
 }
 
@@ -203,18 +208,21 @@ fn main() {
                         // Poll counter → emit Tauri events
                         let h2 = app_handle.clone();
                         thread::spawn(move || {
-                            let mut last = 0u64;
+                            let mut last_total = 0u64;
                             let mut tick = 0u64;
                             loop {
                                 thread::sleep(Duration::from_millis(30));
-                                let cur = INPUT_COUNTER.load(Ordering::Relaxed);
-                                if cur != last {
-                                    let _ = h2.emit("global-input", cur);
-                                    last = cur;
+                                let k = KEY_COUNTER.load(Ordering::Relaxed);
+                                let m = MOUSE_COUNTER.load(Ordering::Relaxed);
+                                let total = k + m;
+                                if total != last_total {
+                                    let _ = h2.emit("global-input", total);
+                                    last_total = total;
                                 }
                                 tick += 1;
-                                if tick % 30 == 0 { // every ~900ms, debug heartbeat
-                                    let _ = h2.emit("input-heartbeat", cur);
+                                if tick % 20 == 0 {
+                                    let _ = h2.emit("input-heartbeat", serde_json::json!({"k": k, "m": m}));
+                                    let _ = h2.emit("input-tap-ok", ());
                                 }
                             }
                         });
