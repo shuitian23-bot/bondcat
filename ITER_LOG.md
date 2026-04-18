@@ -24,3 +24,8 @@
 - weapon_sword.png (木剑 DMG+1)
 - weapon_hammer.png (铁锤 DMG+3)
 - weapon_wand.png (魔杖 DMG+6)
+
+## iter 6 (v0.3.12) — 2026-04-18
+- ground.png (可平铺草地条)
+- dragon_boss.png (红龙终极BOSS,64x64,用于后续boss战)
+- 素材库已齐: 12个 PNG (猫/3怪/mini-boss/龙BOSS/3宝箱/3武器/地面)
