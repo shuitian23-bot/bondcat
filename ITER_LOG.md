@@ -14,3 +14,8 @@
 ## iter 3 (v0.3.9) — 2026-04-18
 - skull.png (漂浮骷髅+红眼)
 - goblin.png (绿皮哥布林武士 48x48,将作为新 mini-boss)
+
+## iter 4 (v0.3.10) — 2026-04-18
+- chest_normal.png (木宝箱)
+- chest_rare.png (蓝宝石宝箱)
+- chest_epic.png (紫水晶史诗宝箱)
