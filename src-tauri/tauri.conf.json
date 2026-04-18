@@ -1,6 +1,6 @@
 {
   "productName": "BondCat",
-  "version": "0.3.7",
+  "version": "0.3.8",
   "identifier": "com.baiyubot.bondcat",
   "build": {
     "frontendDist": "../src",
