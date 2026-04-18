@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=500, height=160">
-<title>邦德猫 v0.4.6</title>
+<title>邦德猫 v0.4.7</title>
 <style>
 * { margin:0; padding:0; box-sizing:border-box; }
 body { width:500px; height:160px; overflow:hidden; background:transparent; font-family:'Segoe UI',sans-serif; user-select:none; }
@@ -49,7 +49,7 @@ canvas { display:block; }
 </head>
 <body>
 <div id="titlebar" data-tauri-drag-region>
-  <span class="title" data-tauri-drag-region>邦德猫 v0.4.6</span>
+  <span class="title" data-tauri-drag-region>邦德猫 v0.4.7</span>
   <span class="stats" id="stats" data-tauri-drag-region></span>
   <div class="btns">
     <button onclick="openModal('backpack')">📦</button>
@@ -118,17 +118,19 @@ function drawImg(img, x, y, w, h, flash) {
 }
 
 // ============ GAME STATE ============
-const SAVE_KEY = 'bondcat_v4';
+const SAVE_KEY = 'bondcat_v5';
 let state = loadState();
+recomputeMaxHp();
 
 function defaultState() {
   return {
     gold: 0, kills: 0, level: 1, xp: 0,
     catHp: 100, catMaxHp: 100,
-    weapon: 0, outfit: 0,
+    outfit: 0, outfitOwned: [true, false, false],
     chests: [0, 0, 0],
-    weaponOwned: [true, false, false],
-    outfitOwned: [true, false, false],
+    equipment: { head: null, body: null, weapon: null, accessory: null },
+    inventory: [],
+    nextItemId: 1,
     skills: { attack: 0, vitality: 0, greed: 0, luck: 0 },
     achievements: [],
     bossKills: 0,
@@ -136,12 +138,93 @@ function defaultState() {
   };
 }
 function loadState() {
-  try { const s = JSON.parse(localStorage.getItem(SAVE_KEY)); if (!s || s.gold === undefined) return defaultState(); if (!s.skills) s.skills = { attack:0, vitality:0, greed:0, luck:0 }; if (s.skills.luck === undefined) s.skills.luck = 0; if (!s.achievements) s.achievements = []; if (s.bossKills === undefined) s.bossKills = 0; if (s.maxCombo === undefined) s.maxCombo = 0; return s; }
+  try { const s = JSON.parse(localStorage.getItem(SAVE_KEY)); if (!s || s.gold === undefined) return defaultState(); if (!s.skills) s.skills = { attack:0, vitality:0, greed:0, luck:0 }; if (s.skills.luck === undefined) s.skills.luck = 0; if (!s.achievements) s.achievements = []; if (s.bossKills === undefined) s.bossKills = 0; if (s.maxCombo === undefined) s.maxCombo = 0;
+    if (!s.equipment) s.equipment = { head: null, body: null, weapon: null, accessory: null };
+    if (!s.inventory) s.inventory = [];
+    if (!s.nextItemId) s.nextItemId = 1;
+    return s; }
   catch(e) { return defaultState(); }
+}
+function recomputeMaxHp() {
+  const base = 100 + (state.level - 1) * 10 + state.skills.vitality * 20;
+  const equipHp = sumEquipStat(itemTotalHp);
+  state.catMaxHp = Math.floor(base + equipHp);
+  if (state.catHp > state.catMaxHp) state.catHp = state.catMaxHp;
 }
 function saveState() { localStorage.setItem(SAVE_KEY, JSON.stringify(state)); }
 
-const WEAPONS = [{name:'木剑',dmg:1,cost:0},{name:'铁锤',dmg:3,cost:500},{name:'魔杖',dmg:6,cost:2000}];
+// Equipment system
+const GEAR_BASES = {
+  head: [
+    { name: '布帽', dmg: 0, hp: 5, icon: '🧢' },
+    { name: '皮盔', dmg: 0, hp: 12, icon: '🎩' },
+    { name: '铁盔', dmg: 0, hp: 25, icon: '⛑️' },
+  ],
+  body: [
+    { name: '布衣', dmg: 0, hp: 8, icon: '👕' },
+    { name: '皮甲', dmg: 0, hp: 18, icon: '🧥' },
+    { name: '板甲', dmg: 0, hp: 35, icon: '🛡️' },
+  ],
+  weapon: [
+    { name: '木剑', dmg: 2, hp: 0, icon: 'swordWep' },
+    { name: '铁锤', dmg: 5, hp: 0, icon: 'hammerWep' },
+    { name: '魔杖', dmg: 9, hp: 0, icon: 'wandWep' },
+  ],
+  accessory: [
+    { name: '幸运符', dmg: 0, hp: 0, icon: '🍀' },
+    { name: '利爪项链', dmg: 1, hp: 0, icon: '💎' },
+    { name: '魔力戒指', dmg: 0, hp: 15, icon: '💍' },
+  ],
+};
+const AFFIX_POOL = [
+  { key: 'critBonus', label: '+暴击', roll: () => (2 + Math.floor(Math.random()*5)) }, // 2-6%
+  { key: 'atkBonus', label: '+攻', roll: () => (1 + Math.floor(Math.random()*3)) },
+  { key: 'hpBonus', label: '+HP', roll: () => (5 + Math.floor(Math.random()*15)) },
+  { key: 'lifesteal', label: '+吸血', roll: () => (1 + Math.floor(Math.random()*3)) }, // 1-3%
+  { key: 'gold', label: '+金币', roll: () => (5 + Math.floor(Math.random()*15)) }, // %
+];
+const RARITY = [
+  { name: '普通', color: '#aaaaaa', affixCount: 0 },
+  { name: '精良', color: '#44dd44', affixCount: 1 },
+  { name: '稀有', color: '#4488ff', affixCount: 2 },
+  { name: '史诗', color: '#bb44ff', affixCount: 3 },
+  { name: '传说', color: '#ff8800', affixCount: 4 },
+];
+function genItem(slot, forcedRarity) {
+  const pool = GEAR_BASES[slot];
+  const base = pool[Math.floor(Math.random() * pool.length)];
+  const rarityIdx = forcedRarity !== undefined ? forcedRarity : Math.floor(Math.random() * RARITY.length);
+  const r = RARITY[rarityIdx];
+  const affixes = [];
+  const available = [...AFFIX_POOL];
+  for (let i = 0; i < r.affixCount && available.length; i++) {
+    const idx = Math.floor(Math.random() * available.length);
+    const a = available.splice(idx, 1)[0];
+    affixes.push({ key: a.key, label: a.label, value: a.roll() });
+  }
+  return {
+    id: state.nextItemId++,
+    slot, name: base.name, icon: base.icon,
+    dmg: base.dmg, hp: base.hp,
+    rarityIdx, upgradeLevel: 0, affixes,
+  };
+}
+function itemTotalDmg(it) {
+  if (!it) return 0;
+  const base = it.dmg * (1 + it.upgradeLevel * 0.2);
+  const affix = it.affixes.filter(a => a.key === 'atkBonus').reduce((s,a)=>s+a.value, 0);
+  return base + affix;
+}
+function itemTotalHp(it) {
+  if (!it) return 0;
+  const base = it.hp * (1 + it.upgradeLevel * 0.2);
+  const affix = it.affixes.filter(a => a.key === 'hpBonus').reduce((s,a)=>s+a.value, 0);
+  return base + affix;
+}
+function sumEquipStat(fn) {
+  return Object.values(state.equipment).reduce((s, it) => s + fn(it), 0);
+}
+// Replace old WEAPONS/OUTFITS (kept minimal for outfit color system)
 const OUTFITS = [{name:'普通',cost:0},{name:'骑士',cost:1000},{name:'魔法',cost:3000}];
 
 // ============ ENTITIES ============
@@ -228,8 +311,9 @@ function playerAttack() {
   attackArc = 1.0;
   const mult = comboMultiplier();
   const atkBuff = 1 + (state.skills.attack * 0.1);
-  const base = (WEAPONS[state.weapon].dmg + Math.floor(state.level * 0.5)) * atkBuff;
-  const critChance = 0.05 + (state.skills.luck * 0.02);
+  const wepDmg = sumEquipStat(itemTotalDmg); const base = (wepDmg + Math.floor(state.level * 0.5)) * atkBuff;
+  const critFromGear = sumEquipStat(it => (it ? it.affixes.filter(a=>a.key==='critBonus').reduce((s,a)=>s+a.value*0.01,0) : 0));
+  const critChance = 0.05 + (state.skills.luck * 0.02) + critFromGear;
   const isCrit = Math.random() < critChance;
   const dmg = Math.ceil(base * mult * (isCrit ? 2 : 1));
   let hit = false, target = null;
@@ -333,17 +417,6 @@ function openModal(type) {
   } else if (type === 'shop') {
     let html = '<h3>🛒 商城</h3>';
     html += '<div style="margin-bottom:6px;color:#f0a040;font-size:10px">💰 ' + state.gold + ' 金币</div>';
-    html += '<div style="font-size:10px;color:#888;margin-bottom:4px">⚔️ 武器</div>';
-    for (let i = 0; i < WEAPONS.length; i++) {
-      const w = WEAPONS[i];
-      const owned = state.weaponOwned[i];
-      const equipped = state.weapon === i;
-      let btn = '';
-      if (equipped) btn = '<button class="equipped">装备中</button>';
-      else if (owned) btn = `<button onclick="equipWeapon(${i})">装备</button>`;
-      else btn = `<button onclick="buyWeapon(${i})">${w.cost}💰</button>`;
-      html += `<div class="row"><span>${w.name} (DMG+${w.dmg})</span>${btn}</div>`;
-    }
     html += '<div style="font-size:10px;color:#888;margin:4px 0">🎨 装扮</div>';
     for (let i = 0; i < OUTFITS.length; i++) {
       const o = OUTFITS[i];
@@ -440,12 +513,7 @@ function openAllChests() {
   openModal('backpack');
 }
 
-function buyWeapon(i) {
-  if (state.gold >= WEAPONS[i].cost && !state.weaponOwned[i]) {
-    state.gold -= WEAPONS[i].cost; state.weaponOwned[i] = true; state.weapon = i; saveState(); openModal('shop');
-  }
-}
-function equipWeapon(i) { state.weapon = i; saveState(); openModal('shop'); }
+
 function buyOutfit(i) {
   if (state.gold >= OUTFITS[i].cost && !state.outfitOwned[i]) {
     state.gold -= OUTFITS[i].cost; state.outfitOwned[i] = true; state.outfit = i; saveState(); openModal('shop');
@@ -694,9 +762,8 @@ function render(time) {
 
   // weapon swing (rotating PNG during attack)
   if (attackArc > 0) {
-    const wepKey = state.weapon === 0 ? 'swordWep' : (state.weapon === 1 ? 'hammerWep' : 'wandWep');
-    const wepImg = IMG[wepKey];
-    if (wepImg && wepImg.complete) {
+    const wep = state.equipment.weapon; const wepKey = wep ? wep.icon : 'swordWep'; const wepImg = IMG[wepKey];
+    if (wep && wepImg && wepImg.complete) {
       const pivotX = catX + CAT_SIZE - 4;
       const pivotY = catY + CAT_SIZE * 0.45;
       const swingProgress = 1 - attackArc; // 0→1 across swing

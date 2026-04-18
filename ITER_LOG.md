@@ -136,3 +136,16 @@
 - 权限配齐: Accessibility + Input Monitoring 都需独立授权
 - 移除 stats 行诊断 (🟢⌨N🖱M),改回纯游戏 HUD
 - 权限心得已存 memory
+## v0.4.7 iter 1/5 — 装备系统 schema 重构
+
+- SAVE_KEY v4→v5,旧存档隔离
+- state.equipment (head/body/weapon/accessory 4 槽)
+- state.inventory 列表
+- GEAR_BASES 每槽 3 基础件
+- AFFIX_POOL 5 词缀 (暴击/攻/HP/吸血/金币)
+- RARITY 5 品质 (普通/精良/稀有/史诗/传说)
+- genItem() 按槽 + 品质随机生成+词缀
+- itemTotalDmg/Hp 累加升级倍率 + 词缀
+- sumEquipStat() 聚合四槽
+- playerAttack dmg 取装备武器,暴击取装备+技能
+- recomputeMaxHp() 动态计算 = 基础 + 等级 + 体力 + 装备
