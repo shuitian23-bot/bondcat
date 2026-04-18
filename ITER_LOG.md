@@ -51,3 +51,9 @@
 - 权重 spawn: minLv 解锁+近期 tier 权重更高,BOSS 固定低权重(1)
 - BOSS 标识: 慢速移动,生成时红字 "⚠ BOSS 来袭!" 警告
 - BOSS 伤害缩放独立: 10 + lv*0.8 (普通怪 3 + type*2 + lv*0.5)
+
+## iter 10 (v0.3.16) — 2026-04-18
+- 武器挥砍动画: 按 state.weapon 取对应 PNG (sword/hammer/wand)
+- 攻击期间 translate+rotate 画出武器,角度随 attackArc 进度从 -126° → +72°
+- 白色弧形 slash trail 半透明描边
+- 替换原来纯描边圆弧
