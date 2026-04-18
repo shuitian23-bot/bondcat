@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=500, height=160">
-<title>邦德猫 v0.3.23</title>
+<title>邦德猫 v0.3.24</title>
 <style>
 * { margin:0; padding:0; box-sizing:border-box; }
 body { width:500px; height:160px; overflow:hidden; background:transparent; font-family:'Segoe UI',sans-serif; user-select:none; }
@@ -42,11 +42,14 @@ canvas { display:block; }
 #modal .panel button.owned { background:#555; color:#999; cursor:default; }
 #modal .panel button.equipped { background:#4a4; color:#fff; cursor:default; }
 #modal .close-hint { color:#666; font-size:9px; margin-top:6px; }
+#modal .panel::-webkit-scrollbar { width:5px; }
+#modal .panel::-webkit-scrollbar-thumb { background:#555; border-radius:3px; }
+#modal .panel h3 { border-bottom:1px solid #333; padding-bottom:4px; }
 </style>
 </head>
 <body>
 <div id="titlebar" data-tauri-drag-region>
-  <span class="title" data-tauri-drag-region>邦德猫 v0.3.23</span>
+  <span class="title" data-tauri-drag-region>邦德猫 v0.3.24</span>
   <span class="stats" id="stats" data-tauri-drag-region></span>
   <div class="btns">
     <button onclick="openModal('backpack')">📦</button>
@@ -57,6 +60,7 @@ canvas { display:block; }
   </div>
 </div>
 <canvas id="game" width="500" height="136"></canvas>
+<div id="xpbar" style="position:absolute;top:24px;left:0;width:0;height:2px;background:linear-gradient(90deg,#f0a040,#ffd880);pointer-events:none;z-index:50;transition:width 0.2s;"></div>
 <div id="axwarn" style="display:none;position:fixed;top:24px;left:0;width:500px;background:#cc3300;color:#fff;font-size:10px;padding:4px 8px;z-index:200;text-align:center;">
   ⚠️ 需要辅助功能权限 <button onclick="openAxSettings()" style="background:#fff;color:#c30;border:none;padding:1px 6px;border-radius:3px;font-size:9px;cursor:pointer;margin-left:4px;">打开设置</button>
   <span style="font-size:8px;display:block;margin-top:2px;">授权后需重启App</span>
@@ -733,10 +737,18 @@ function render(time) {
     const a = Math.min(1, f.life * 2);
     ctx.globalAlpha = a;
     ctx.fillStyle = f.color;
-    ctx.font = f.text.includes('LEVEL') ? 'bold 14px monospace' : 'bold 11px monospace';
+    let fontSize = 11;
+    if (f.text.includes('LEVEL') || f.text.includes('BOSS') || f.text.includes('COMBO')) fontSize = 15;
+    else if (f.text.startsWith('CRIT')) fontSize = 14;
+    else if (f.text.startsWith('🏆')) fontSize = 14;
+    ctx.font = 'bold ' + fontSize + 'px monospace';
+    // text shadow for readability
+    ctx.shadowColor = 'rgba(0,0,0,0.8)';
+    ctx.shadowBlur = 3;
     ctx.fillText(f.text, f.x, f.y);
   }
   ctx.globalAlpha = 1;
+  ctx.shadowBlur = 0;
   ctx.textAlign = 'start';
 }
 
@@ -751,6 +763,7 @@ function gameLoop(now) {
     if (!window._achTick) window._achTick = 0;
     window._achTick++;
     if (window._achTick % 60 === 0) checkAchievements();
+    const xpNeeded = state.level * 15; const xpPct = Math.min(100, (state.xp / xpNeeded) * 100); document.getElementById('xpbar').style.width = xpPct + '%';
     document.getElementById('stats').textContent = `💰${state.gold} ⚔️${state.kills} Lv${state.level}${comboStr}`;
   } catch(e) { console.error(e); }
   requestAnimationFrame(gameLoop);
