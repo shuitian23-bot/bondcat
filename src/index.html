@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=500, height=160">
-<title>邦德猫 v0.5.1</title>
+<title>邦德猫 v0.5.2</title>
 <style>
 * { margin:0; padding:0; box-sizing:border-box; }
 body { width:500px; height:160px; overflow:hidden; background:transparent; font-family:'Segoe UI',sans-serif; user-select:none; }
@@ -49,9 +49,10 @@ canvas { display:block; }
 </head>
 <body>
 <div id="titlebar" data-tauri-drag-region>
-  <span class="title" data-tauri-drag-region>邦德猫 v0.5.1</span>
+  <span class="title" data-tauri-drag-region>邦德猫 v0.5.2</span>
   <span class="stats" id="stats" data-tauri-drag-region></span>
   <div class="btns">
+    <button onclick="openModal('paperdoll')">👤</button>
     <button onclick="openModal('backpack')">📦</button>
     <button onclick="openModal('shop')">🛒</button>
     <button onclick="openModal('skills')">🌟</button>
@@ -498,6 +499,38 @@ function monsterAttack(m) {
   saveState();
 }
 
+function compareItem(it) {
+  const cur = state.equipment[it.slot];
+  if (!cur) return { totalDelta: 999, parts: [] }; // empty slot always better
+  const parts = [];
+  const dmgA = itemTotalDmg(cur), dmgB = itemTotalDmg(it);
+  const hpA = itemTotalHp(cur), hpB = itemTotalHp(it);
+  if (dmgB !== dmgA) parts.push({ k: '攻', d: +(dmgB - dmgA).toFixed(1) });
+  if (hpB !== hpA) parts.push({ k: 'HP', d: Math.floor(hpB - hpA) });
+  // Affix diff
+  const affixKeys = ['critBonus', 'lifesteal', 'gold'];
+  for (const ak of affixKeys) {
+    const va = cur.affixes.filter(a => a.key === ak).reduce((s, a) => s + a.value, 0);
+    const vb = it.affixes.filter(a => a.key === ak).reduce((s, a) => s + a.value, 0);
+    if (va !== vb) {
+      const label = { critBonus: '暴击', lifesteal: '吸血', gold: '金币' }[ak];
+      parts.push({ k: label, d: vb - va, pct: true });
+    }
+  }
+  const total = parts.reduce((s, p) => s + p.d, 0);
+  return { totalDelta: total, parts };
+}
+
+function renderCompareHtml(cmp) {
+  if (cmp.parts.length === 0) return '';
+  return '<span style="font-size:8px;margin-left:4px">' + cmp.parts.map(p => {
+    const col = p.d > 0 ? '#44ff66' : '#ff4466';
+    const sign = p.d > 0 ? '+' : '';
+    const suffix = p.pct ? '%' : '';
+    return `<span style="color:${col}">${p.k}${sign}${p.d}${suffix}</span>`;
+  }).join(' ') + '</span>';
+}
+
 // ============ MODAL ============
 function openModal(type) {
   modalOpen = true;
@@ -530,14 +563,16 @@ function openModal(type) {
       html += '<div style="color:#666;font-size:10px;text-align:center;margin-top:6px">背包空 — 击杀怪物掉落装备</div>';
     } else {
       // Sort by rarity desc
-      const sorted = state.inventory.slice().sort((a,b) => b.rarityIdx - a.rarityIdx);
+      const sorted = state.inventory.slice().sort((a,b) => { const ca = compareItem(a).totalDelta; const cb = compareItem(b).totalDelta; if (ca !== cb) return cb - ca; return b.rarityIdx - a.rarityIdx; });
       for (const it of sorted) {
         const rc = RARITY[it.rarityIdx].color;
         const upg = it.upgradeLevel > 0 ? ' +' + it.upgradeLevel : '';
         const stats = itemStatSummary(it);
         const upCost = it.upgradeLevel >= 10 ? 'MAX' : (upgradeCost(it) + '💰');
+        const cmp = compareItem(it);
+        const cmpHtml = renderCompareHtml(cmp);
         html += `<div class="row" style="border-left:3px solid ${rc};padding-left:6px">
-          <span><b style="color:${rc}">${slotLabels[it.slot]} ${it.name}${upg}</b><br><span style="font-size:9px;color:#aaa">${stats}</span></span>
+          <span><b style="color:${rc}">${slotLabels[it.slot]} ${it.name}${upg}</b>${cmpHtml}<br><span style="font-size:9px;color:#aaa">${stats}</span></span>
           <span style="display:flex;flex-direction:column;gap:1px">
             <button style="font-size:9px;padding:1px 5px" onclick="equipItem(${it.id})">装</button>
             <button style="font-size:9px;padding:1px 5px" onclick="upgradeItem(${it.id})" title="升级">⬆${upCost}</button>
