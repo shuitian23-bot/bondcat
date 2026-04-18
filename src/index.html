@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=500, height=160">
-<title>邦德猫 v0.3.17</title>
+<title>邦德猫 v0.3.18</title>
 <style>
 * { margin:0; padding:0; box-sizing:border-box; }
 body { width:500px; height:160px; overflow:hidden; background:transparent; font-family:'Segoe UI',sans-serif; user-select:none; }
@@ -46,7 +46,7 @@ canvas { display:block; }
 </head>
 <body>
 <div id="titlebar" data-tauri-drag-region>
-  <span class="title" data-tauri-drag-region>邦德猫 v0.3.17</span>
+  <span class="title" data-tauri-drag-region>邦德猫 v0.3.18</span>
   <span class="stats" id="stats" data-tauri-drag-region></span>
   <div class="btns">
     <button onclick="openModal('backpack')">📦</button>
@@ -244,10 +244,22 @@ function killMonster(m) {
   if (state.xp >= xpNeeded) { state.level++; state.xp -= xpNeeded; state.catMaxHp += 10; state.catHp = state.catMaxHp;
     floatTexts.push({ x: 80, y: 20, text: 'LEVEL UP!', color: '#ffff00', life: 1.5 });
   }
-  // particles
-  for (let i = 0; i < 12; i++) {
-    particles.push({ x: m.x + 15, y: m.y + 15, vx: (Math.random()-0.5)*120, vy: (Math.random()-0.5)*120,
-      color: MONSTER_PARTICLE_COLOR[t.img] || '#ffffff', life: 0.6 + Math.random()*0.3 });
+  // particles (boss = big explosion)
+  const partCount = t.isBoss ? 40 : 14;
+  const partSpeed = t.isBoss ? 220 : 120;
+  for (let i = 0; i < partCount; i++) {
+    particles.push({
+      x: m.x + t.size/2, y: m.y + t.size/2,
+      vx: (Math.random()-0.5)*partSpeed, vy: (Math.random()-0.5)*partSpeed,
+      color: MONSTER_PARTICLE_COLOR[t.img] || '#ffffff',
+      life: 0.6 + Math.random()*0.5,
+      size: t.isBoss ? 5 : 3,
+      glow: t.isBoss,
+      gravity: 120, drag: 0.98,
+    });
+  }
+  if (t.isBoss) {
+    floatTexts.push({ x: 250, y: 40, text: '💥 BOSS 已斩!', color: '#ffff40', life: 2.0 });
   }
   // chest drop 80%
   if (Math.random() < 0.8) {
@@ -335,6 +347,7 @@ function closeModal() { modalOpen = false; document.getElementById('modal').clas
 
 function openAllChests() {
   let totalGold = 0;
+  let totalCount = state.chests[0] + state.chests[1] + state.chests[2];
   const goldPer = [5, 15, 40];
   for (let i = 0; i < 3; i++) {
     for (let j = 0; j < state.chests[i]; j++) {
@@ -345,6 +358,17 @@ function openAllChests() {
   if (totalGold > 0) {
     state.gold += totalGold;
     floatTexts.push({ x: 200, y: 50, text: '+' + totalGold + '💰', color: '#FFD700', life: 1.5 });
+    // Golden sparkle burst at cat
+    for (let i = 0; i < Math.min(60, 10 + totalCount * 3); i++) {
+      particles.push({
+        x: 100, y: 80,
+        vx: (Math.random()-0.5)*180, vy: -Math.random()*200 - 50,
+        color: Math.random() < 0.5 ? '#FFD700' : '#ffff80',
+        life: 0.8 + Math.random()*0.7,
+        size: 4, glow: true,
+        gravity: 200, drag: 0.97,
+      });
+    }
     saveState();
   }
   openModal('backpack');
@@ -425,9 +449,13 @@ function update(dt) {
   }
   chestDrops = chestDrops.filter(c => !c.collected || Math.abs(c.x - 80) > 5);
 
-  // particles
+  // particles (with gravity + drag)
   for (const p of particles) {
-    p.x += p.vx * dt; p.y += p.vy * dt; p.life -= dt;
+    p.x += p.vx * dt;
+    p.y += p.vy * dt;
+    p.vy += (p.gravity || 0) * dt;
+    p.vx *= p.drag !== undefined ? p.drag : 1;
+    p.life -= dt;
   }
   particles = particles.filter(p => p.life > 0);
 
@@ -526,12 +554,18 @@ function render(time) {
     }
   }
 
-  // particles
+  // particles (size + glow)
   for (const p of particles) {
     const a = Math.min(1, p.life * 2);
-    ctx.fillStyle = p.color;
+    const sz = p.size || 3;
+    if (p.glow) {
+      ctx.globalAlpha = a * 0.4;
+      ctx.fillStyle = p.color;
+      ctx.fillRect(p.x - sz, p.y - sz, sz * 3, sz * 3);
+    }
     ctx.globalAlpha = a;
-    ctx.fillRect(p.x, p.y, 3, 3);
+    ctx.fillStyle = p.color;
+    ctx.fillRect(p.x, p.y, sz, sz);
   }
   ctx.globalAlpha = 1;
 
