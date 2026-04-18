@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=500, height=160">
-<title>邦德猫 v0.4.9</title>
+<title>邦德猫 v0.4.10</title>
 <style>
 * { margin:0; padding:0; box-sizing:border-box; }
 body { width:500px; height:160px; overflow:hidden; background:transparent; font-family:'Segoe UI',sans-serif; user-select:none; }
@@ -49,7 +49,7 @@ canvas { display:block; }
 </head>
 <body>
 <div id="titlebar" data-tauri-drag-region>
-  <span class="title" data-tauri-drag-region>邦德猫 v0.4.9</span>
+  <span class="title" data-tauri-drag-region>邦德猫 v0.4.10</span>
   <span class="stats" id="stats" data-tauri-drag-region></span>
   <div class="btns">
     <button onclick="openModal('backpack')">📦</button>
@@ -249,6 +249,7 @@ function equipItem(id) {
   if (current) state.inventory.push(current);
   recomputeMaxHp();
   saveState();
+  if (modalOpen) openModal('backpack');
 }
 function unequipItem(slot) {
   const item = state.equipment[slot];
@@ -257,6 +258,7 @@ function unequipItem(slot) {
   state.equipment[slot] = null;
   recomputeMaxHp();
   saveState();
+  if (modalOpen) openModal('backpack');
 }
 function upgradeItem(id) {
   const found = findItemById(id);
@@ -270,6 +272,7 @@ function upgradeItem(id) {
   if (found.loc === 'equipped') recomputeMaxHp();
   floatTexts.push({ x: 200, y: 40, text: '+1 ' + it.name + ' Lv' + it.upgradeLevel, color: '#ffd700', life: 1.2 });
   saveState();
+  if (modalOpen) openModal('backpack');
 }
 function sellItem(id) {
   const found = findItemById(id);
@@ -279,6 +282,7 @@ function sellItem(id) {
   state.inventory.splice(found.idx, 1);
   floatTexts.push({ x: 200, y: 40, text: '+' + price + '💰 (卖)', color: '#ffd700', life: 1.0 });
   saveState();
+  if (modalOpen) openModal('backpack');
 }
 function itemStatSummary(it) {
   const parts = [];
@@ -495,11 +499,47 @@ function openModal(type) {
   const content = document.getElementById('modalContent');
   el.classList.add('open');
   if (type === 'backpack') {
-    const names = ['普通宝箱🟫','稀有宝箱🔵','史诗宝箱🟣'];
-    let total = state.chests[0] + state.chests[1] + state.chests[2];
-    let html = '<h3>📦 背包</h3>';
-    for (let i = 0; i < 3; i++) html += `<div class="row"><span>${names[i]}</span><span>x${state.chests[i]}</span></div>`;
-    html += `<div style="text-align:center;margin-top:8px"><button onclick="openAllChests()" ${total===0?'class="owned"':''}>一键全开 (${total})</button></div>`;
+    let totalC = state.chests[0] + state.chests[1] + state.chests[2];
+    let html = '<h3>🎒 装备 (金币 ' + state.gold + ')</h3>';
+    // Equipped row
+    const slotLabels = { head: '🎩头', body: '🧥身', weapon: '⚔️武', accessory: '💍饰' };
+    html += '<div style="display:flex;gap:3px;margin-bottom:4px;font-size:10px">';
+    for (const sk of ['head','body','weapon','accessory']) {
+      const it = state.equipment[sk];
+      if (it) {
+        const rc = RARITY[it.rarityIdx].color;
+        const upg = it.upgradeLevel > 0 ? '+' + it.upgradeLevel : '';
+        html += `<div style="flex:1;padding:3px;border:1px solid ${rc};border-radius:3px;cursor:pointer" onclick="unequipItem('${sk}')" title="卸下"><span style="color:${rc}">${slotLabels[sk]}</span> ${it.name}${upg}</div>`;
+      } else {
+        html += `<div style="flex:1;padding:3px;border:1px dashed #333;border-radius:3px;color:#555">${slotLabels[sk]} —</div>`;
+      }
+    }
+    html += '</div>';
+    // Chest quick-open
+    if (totalC > 0) {
+      html += `<div style="text-align:center;margin:4px 0"><button onclick="openAllChests()">🗝️ 开箱 (${totalC})</button></div>`;
+    }
+    // Inventory list
+    if (state.inventory.length === 0) {
+      html += '<div style="color:#666;font-size:10px;text-align:center;margin-top:6px">背包空 — 击杀怪物掉落装备</div>';
+    } else {
+      // Sort by rarity desc
+      const sorted = state.inventory.slice().sort((a,b) => b.rarityIdx - a.rarityIdx);
+      for (const it of sorted) {
+        const rc = RARITY[it.rarityIdx].color;
+        const upg = it.upgradeLevel > 0 ? ' +' + it.upgradeLevel : '';
+        const stats = itemStatSummary(it);
+        const upCost = it.upgradeLevel >= 10 ? 'MAX' : (upgradeCost(it) + '💰');
+        html += `<div class="row" style="border-left:3px solid ${rc};padding-left:6px">
+          <span><b style="color:${rc}">${slotLabels[it.slot]} ${it.name}${upg}</b><br><span style="font-size:9px;color:#aaa">${stats}</span></span>
+          <span style="display:flex;flex-direction:column;gap:1px">
+            <button style="font-size:9px;padding:1px 5px" onclick="equipItem(${it.id})">装</button>
+            <button style="font-size:9px;padding:1px 5px" onclick="upgradeItem(${it.id})" title="升级">⬆${upCost}</button>
+            <button style="font-size:9px;padding:1px 5px;background:#888" onclick="sellItem(${it.id})">卖${sellPrice(it)}💰</button>
+          </span>
+        </div>`;
+      }
+    }
     content.innerHTML = html;
   } else if (type === 'shop') {
     let html = '<h3>🛒 商城</h3>';
