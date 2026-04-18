@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=500, height=160">
-<title>邦德猫 v0.4.8</title>
+<title>邦德猫 v0.4.9</title>
 <style>
 * { margin:0; padding:0; box-sizing:border-box; }
 body { width:500px; height:160px; overflow:hidden; background:transparent; font-family:'Segoe UI',sans-serif; user-select:none; }
@@ -49,7 +49,7 @@ canvas { display:block; }
 </head>
 <body>
 <div id="titlebar" data-tauri-drag-region>
-  <span class="title" data-tauri-drag-region>邦德猫 v0.4.8</span>
+  <span class="title" data-tauri-drag-region>邦德猫 v0.4.9</span>
   <span class="stats" id="stats" data-tauri-drag-region></span>
   <div class="btns">
     <button onclick="openModal('backpack')">📦</button>
@@ -223,6 +223,72 @@ function itemTotalHp(it) {
 }
 function sumEquipStat(fn) {
   return Object.values(state.equipment).reduce((s, it) => s + fn(it), 0);
+}
+function upgradeCost(item) {
+  return Math.ceil(40 * Math.pow(item.upgradeLevel + 1, 2) * (1 + item.rarityIdx * 0.3));
+}
+function sellPrice(item) {
+  return Math.ceil(15 * Math.pow(1 + item.rarityIdx, 1.3) * (1 + item.upgradeLevel * 0.5));
+}
+function findItemById(id) {
+  for (const slot of Object.keys(state.equipment)) {
+    const it = state.equipment[slot];
+    if (it && it.id === id) return { item: it, loc: 'equipped', slot };
+  }
+  const idx = state.inventory.findIndex(it => it.id === id);
+  if (idx >= 0) return { item: state.inventory[idx], loc: 'inv', idx };
+  return null;
+}
+function equipItem(id) {
+  const found = findItemById(id);
+  if (!found || found.loc !== 'inv') return;
+  const item = found.item;
+  const current = state.equipment[item.slot];
+  state.equipment[item.slot] = item;
+  state.inventory.splice(found.idx, 1);
+  if (current) state.inventory.push(current);
+  recomputeMaxHp();
+  saveState();
+}
+function unequipItem(slot) {
+  const item = state.equipment[slot];
+  if (!item) return;
+  state.inventory.push(item);
+  state.equipment[slot] = null;
+  recomputeMaxHp();
+  saveState();
+}
+function upgradeItem(id) {
+  const found = findItemById(id);
+  if (!found) return;
+  const it = found.item;
+  if (it.upgradeLevel >= 10) return;
+  const cost = upgradeCost(it);
+  if (state.gold < cost) return;
+  state.gold -= cost;
+  it.upgradeLevel++;
+  if (found.loc === 'equipped') recomputeMaxHp();
+  floatTexts.push({ x: 200, y: 40, text: '+1 ' + it.name + ' Lv' + it.upgradeLevel, color: '#ffd700', life: 1.2 });
+  saveState();
+}
+function sellItem(id) {
+  const found = findItemById(id);
+  if (!found || found.loc !== 'inv') return;
+  const price = sellPrice(found.item);
+  state.gold += price;
+  state.inventory.splice(found.idx, 1);
+  floatTexts.push({ x: 200, y: 40, text: '+' + price + '💰 (卖)', color: '#ffd700', life: 1.0 });
+  saveState();
+}
+function itemStatSummary(it) {
+  const parts = [];
+  const d = itemTotalDmg(it); if (d > 0) parts.push('攻+' + d);
+  const hp = itemTotalHp(it); if (hp > 0) parts.push('HP+' + Math.floor(hp));
+  for (const a of it.affixes) {
+    if (a.key === 'atkBonus' || a.key === 'hpBonus') continue;
+    parts.push(a.label + a.value + (['critBonus','lifesteal','gold'].includes(a.key) ? '%' : ''));
+  }
+  return parts.join(' ');
 }
 // Replace old WEAPONS/OUTFITS (kept minimal for outfit color system)
 const OUTFITS = [{name:'普通',cost:0},{name:'骑士',cost:1000},{name:'魔法',cost:3000}];

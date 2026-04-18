@@ -157,3 +157,11 @@
 - 掉落飘字按品质颜色 (灰/绿/蓝/紫/橙)
 - 吸血词缀: 攻击命中回血 (+heal 绿飘字)
 - 金币词缀: 宝箱拾取时 +N% 金币
+## v0.4.9 iter 3/5 — 装备操作函数
+
+- equipItem(id) / unequipItem(slot): 背包↔装备槽切换
+- upgradeItem(id): 金币升级,cost=40*(lv+1)²*(1+rarity*0.3)
+- sellItem(id): 卖装备,price=15*(1+rarity)^1.3*(1+lv*0.5)
+- findItemById: 跨装备/背包查找
+- itemStatSummary: 生成显示字符串
+- 装备操作后 recomputeMaxHp 同步 HP
