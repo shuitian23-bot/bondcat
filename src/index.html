@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=500, height=160">
-<title>邦德猫 v0.3.16</title>
+<title>邦德猫 v0.3.17</title>
 <style>
 * { margin:0; padding:0; box-sizing:border-box; }
 body { width:500px; height:160px; overflow:hidden; background:transparent; font-family:'Segoe UI',sans-serif; user-select:none; }
@@ -46,11 +46,12 @@ canvas { display:block; }
 </head>
 <body>
 <div id="titlebar" data-tauri-drag-region>
-  <span class="title" data-tauri-drag-region>邦德猫 v0.3.16</span>
+  <span class="title" data-tauri-drag-region>邦德猫 v0.3.17</span>
   <span class="stats" id="stats" data-tauri-drag-region></span>
   <div class="btns">
     <button onclick="openModal('backpack')">📦</button>
     <button onclick="openModal('shop')">🛒</button>
+    <button onclick="openModal('skills')">🌟</button>
     <button onclick="hideWindow()">✕</button>
   </div>
 </div>
@@ -123,10 +124,11 @@ function defaultState() {
     chests: [0, 0, 0],
     weaponOwned: [true, false, false],
     outfitOwned: [true, false, false],
+    skills: { attack: 0, vitality: 0, greed: 0 },
   };
 }
 function loadState() {
-  try { const s = JSON.parse(localStorage.getItem(SAVE_KEY)); return s && s.gold !== undefined ? s : defaultState(); }
+  try { const s = JSON.parse(localStorage.getItem(SAVE_KEY)); if (!s || s.gold === undefined) return defaultState(); if (!s.skills) s.skills = { attack:0, vitality:0, greed:0 }; return s; }
   catch(e) { return defaultState(); }
 }
 function saveState() { localStorage.setItem(SAVE_KEY, JSON.stringify(state)); }
@@ -209,7 +211,7 @@ function playerAttack() {
   attackAnim = 0.3;
   attackArc = 1.0;
   const mult = comboMultiplier();
-  const base = WEAPONS[state.weapon].dmg + Math.floor(state.level * 0.5);
+  const atkBuff = 1 + (state.skills.attack * 0.1); const base = (WEAPONS[state.weapon].dmg + Math.floor(state.level * 0.5)) * atkBuff;
   const dmg = Math.ceil(base * mult);
   let hit = false, target = null;
   for (const m of monsters) { if (m.x < 200) { target = m; break; } }
@@ -251,7 +253,7 @@ function killMonster(m) {
   if (Math.random() < 0.8) {
     const r = Math.random();
     const rarity = r < 0.6 ? 0 : (r < 0.9 ? 1 : 2);
-    const gold = t.goldMin + Math.floor(Math.random() * (t.goldMax - t.goldMin + 1));
+    const greedBuff = 1 + (state.skills.greed * 0.1); const gold = Math.ceil((t.goldMin + Math.floor(Math.random() * (t.goldMax - t.goldMin + 1))) * greedBuff);
     chestDrops.push({ x: m.x, y: m.y, rarity, gold, timer: 2.0, collected: false });
   }
   saveState();
@@ -313,6 +315,20 @@ function openModal(type) {
     }
     content.innerHTML = html;
   }
+}
+
+function skillCost(level) { return 50 * (level + 1) * (level + 1); }
+
+function buySkill(key) {
+  const cur = state.skills[key];
+  if (cur >= 10) return;
+  const cost = skillCost(cur);
+  if (state.gold < cost) return;
+  state.gold -= cost;
+  state.skills[key] = cur + 1;
+  if (key === 'vitality') { state.catMaxHp += 20; state.catHp = Math.min(state.catMaxHp, state.catHp + 20); }
+  saveState();
+  openModal('skills');
 }
 
 function closeModal() { modalOpen = false; document.getElementById('modal').classList.remove('open'); }
