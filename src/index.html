@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=500, height=160">
-<title>邦德猫 v0.3.14</title>
+<title>邦德猫 v0.3.15</title>
 <style>
 * { margin:0; padding:0; box-sizing:border-box; }
 body { width:500px; height:160px; overflow:hidden; background:transparent; font-family:'Segoe UI',sans-serif; user-select:none; }
@@ -46,7 +46,7 @@ canvas { display:block; }
 </head>
 <body>
 <div id="titlebar" data-tauri-drag-region>
-  <span class="title" data-tauri-drag-region>邦德猫 v0.3.14</span>
+  <span class="title" data-tauri-drag-region>邦德猫 v0.3.15</span>
   <span class="stats" id="stats" data-tauri-drag-region></span>
   <div class="btns">
     <button onclick="openModal('backpack')">📦</button>
@@ -155,22 +155,44 @@ for (let i = 0; i < 40; i++) {
 }
 
 const MONSTER_TYPES = [
-  { name:'史莱姆', img:'slime', size:40, hp:3, xpVal:2, goldMin:3, goldMax:8 },
-  { name:'蝙蝠', img:'bat', size:40, hp:5, xpVal:4, goldMin:5, goldMax:12 },
-  { name:'骷髅', img:'skull', size:44, hp:8, xpVal:7, goldMin:8, goldMax:20 },
+  { name:'史莱姆', img:'slime', size:40, hp:3, xpVal:2, goldMin:3, goldMax:8, minLv:1, isBoss:false },
+  { name:'蝙蝠', img:'bat', size:40, hp:5, xpVal:4, goldMin:5, goldMax:12, minLv:2, isBoss:false },
+  { name:'骷髅', img:'skull', size:44, hp:8, xpVal:7, goldMin:8, goldMax:20, minLv:4, isBoss:false },
+  { name:'哥布林', img:'goblin', size:48, hp:16, xpVal:15, goldMin:20, goldMax:50, minLv:6, isBoss:false },
+  { name:'赤龙王', img:'dragon', size:64, hp:50, xpVal:50, goldMin:100, goldMax:300, minLv:10, isBoss:true },
 ];
+
+function pickMonsterType() {
+  const available = [];
+  for (let i = 0; i < MONSTER_TYPES.length; i++) {
+    const t = MONSTER_TYPES[i];
+    if (state.level < t.minLv) continue;
+    // Boss has low base weight
+    if (t.isBoss) { available.push({ i, w: 1 }); continue; }
+    // Recent tiers weighted higher
+    const tierAge = state.level - t.minLv;
+    const w = Math.max(1, 10 - tierAge);
+    available.push({ i, w });
+  }
+  const total = available.reduce((s, x) => s + x.w, 0);
+  let r = Math.random() * total;
+  for (const x of available) { r -= x.w; if (r <= 0) return x.i; }
+  return available[0].i;
+}
 
 function spawnMonster() {
   if (monsters.length >= 4) return;
-  const lvl = Math.min(2, Math.floor(state.level / 3));
-  const typeIdx = Math.random() < 0.5 ? 0 : (Math.random() < 0.6 ? Math.min(1,lvl) : Math.min(2,lvl));
+  const typeIdx = pickMonsterType();
   const t = MONSTER_TYPES[typeIdx];
   const hpMult = 1 + (state.level - 1) * 0.3;
   monsters.push({
-    type: typeIdx, x: 350 + Math.random() * 100, y: 136 - t.size - 8,
+    type: typeIdx, x: 360 + Math.random() * 100, y: 136 - t.size - 8,
     hp: Math.ceil(t.hp * hpMult), maxHp: Math.ceil(t.hp * hpMult),
-    speed: 25 + Math.random() * 10, flash: 0, atkTimer: 0,
+    speed: t.isBoss ? 12 : (25 + Math.random() * 10), flash: 0, atkTimer: 0,
   });
+  if (t.isBoss) {
+    floatTexts.push({ x: 250, y: 30, text: '⚠ BOSS 来袭!', color: '#ff4040', life: 2.0 });
+  }
 }
 
 // ============ ATTACK ============
@@ -237,7 +259,7 @@ function killMonster(m) {
 
 function monsterAttack(m) {
   if (catDead > 0) return;
-  const dmg = 3 + m.type * 2 + Math.floor(state.level * 0.5);
+  const t = MONSTER_TYPES[m.type]; const dmg = t.isBoss ? (10 + Math.floor(state.level * 0.8)) : (3 + m.type * 2 + Math.floor(state.level * 0.5));
   state.catHp -= dmg;
   catFlash = 0.2;
   floatTexts.push({ x: 80, y: 40, text: '-' + dmg, color: '#ff4444', life: 0.8 });
