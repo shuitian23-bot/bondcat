@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=500, height=160">
-<title>邦德猫 v0.3.20</title>
+<title>邦德猫 v0.3.21</title>
 <style>
 * { margin:0; padding:0; box-sizing:border-box; }
 body { width:500px; height:160px; overflow:hidden; background:transparent; font-family:'Segoe UI',sans-serif; user-select:none; }
@@ -46,7 +46,7 @@ canvas { display:block; }
 </head>
 <body>
 <div id="titlebar" data-tauri-drag-region>
-  <span class="title" data-tauri-drag-region>邦德猫 v0.3.20</span>
+  <span class="title" data-tauri-drag-region>邦德猫 v0.3.21</span>
   <span class="stats" id="stats" data-tauri-drag-region></span>
   <div class="btns">
     <button onclick="openModal('backpack')">📦</button>
@@ -125,14 +125,14 @@ function defaultState() {
     chests: [0, 0, 0],
     weaponOwned: [true, false, false],
     outfitOwned: [true, false, false],
-    skills: { attack: 0, vitality: 0, greed: 0 },
+    skills: { attack: 0, vitality: 0, greed: 0, luck: 0 },
     achievements: [],
     bossKills: 0,
     maxCombo: 0,
   };
 }
 function loadState() {
-  try { const s = JSON.parse(localStorage.getItem(SAVE_KEY)); if (!s || s.gold === undefined) return defaultState(); if (!s.skills) s.skills = { attack:0, vitality:0, greed:0 }; if (!s.achievements) s.achievements = []; if (s.bossKills === undefined) s.bossKills = 0; if (s.maxCombo === undefined) s.maxCombo = 0; return s; }
+  try { const s = JSON.parse(localStorage.getItem(SAVE_KEY)); if (!s || s.gold === undefined) return defaultState(); if (!s.skills) s.skills = { attack:0, vitality:0, greed:0, luck:0 }; if (s.skills.luck === undefined) s.skills.luck = 0; if (!s.achievements) s.achievements = []; if (s.bossKills === undefined) s.bossKills = 0; if (s.maxCombo === undefined) s.maxCombo = 0; return s; }
   catch(e) { return defaultState(); }
 }
 function saveState() { localStorage.setItem(SAVE_KEY, JSON.stringify(state)); }
@@ -215,8 +215,11 @@ function playerAttack() {
   attackAnim = 0.3;
   attackArc = 1.0;
   const mult = comboMultiplier();
-  const atkBuff = 1 + (state.skills.attack * 0.1); const base = (WEAPONS[state.weapon].dmg + Math.floor(state.level * 0.5)) * atkBuff;
-  const dmg = Math.ceil(base * mult);
+  const atkBuff = 1 + (state.skills.attack * 0.1);
+  const base = (WEAPONS[state.weapon].dmg + Math.floor(state.level * 0.5)) * atkBuff;
+  const critChance = 0.05 + (state.skills.luck * 0.02);
+  const isCrit = Math.random() < critChance;
+  const dmg = Math.ceil(base * mult * (isCrit ? 2 : 1));
   let hit = false, target = null;
   for (const m of monsters) { if (m.x < 200) { target = m; break; } }
   if (!target) for (const m of monsters) { if (m.x < 300) { target = m; break; } }
@@ -224,8 +227,18 @@ function playerAttack() {
     target.hp -= dmg;
     target.flash = 0.15;
     hit = true;
-    const hitColor = mult >= 2 ? '#ffff40' : (mult >= 1.5 ? '#80ffff' : '#ffffff');
-    floatTexts.push({ x: target.x + 10, y: target.y - 5, text: '-' + dmg, color: hitColor, life: 0.8 });
+    const hitColor = isCrit ? '#ff8040' : (mult >= 2 ? '#ffff40' : (mult >= 1.5 ? '#80ffff' : '#ffffff'));
+    floatTexts.push({ x: target.x + 10, y: target.y - 5, text: (isCrit ? 'CRIT -' : '-') + dmg, color: hitColor, life: 0.8 });
+    if (isCrit) {
+      for (let i = 0; i < 10; i++) {
+        particles.push({
+          x: target.x + target.size/2 || target.x + 15, y: target.y + 15,
+          vx: (Math.random()-0.5)*160, vy: -Math.random()*160,
+          color: '#ff8040', life: 0.6,
+          size: 3, glow: true, gravity: 150, drag: 0.95,
+        });
+      }
+    }
     if (target.hp <= 0) killMonster(target);
     comboCount++;
     comboTimer = 2.0;
