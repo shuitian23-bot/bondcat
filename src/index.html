@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=500, height=160">
-<title>邦德猫 v0.5.0</title>
+<title>邦德猫 v0.5.1</title>
 <style>
 * { margin:0; padding:0; box-sizing:border-box; }
 body { width:500px; height:160px; overflow:hidden; background:transparent; font-family:'Segoe UI',sans-serif; user-select:none; }
@@ -49,7 +49,7 @@ canvas { display:block; }
 </head>
 <body>
 <div id="titlebar" data-tauri-drag-region>
-  <span class="title" data-tauri-drag-region>邦德猫 v0.5.0</span>
+  <span class="title" data-tauri-drag-region>邦德猫 v0.5.1</span>
   <span class="stats" id="stats" data-tauri-drag-region></span>
   <div class="btns">
     <button onclick="openModal('backpack')">📦</button>
@@ -128,9 +128,12 @@ function defaultState() {
     catHp: 100, catMaxHp: 100,
     outfit: 0, outfitOwned: [true, false, false],
     chests: [0, 0, 0],
-    equipment: { head: null, body: null, weapon: null, accessory: null },
+    equipment: {
+      head: null, body: null, accessory: null,
+      weapon: { id: 1, slot: 'weapon', name: '木剑', icon: 'swordWep', dmg: 2, hp: 0, rarityIdx: 0, upgradeLevel: 0, affixes: [] },
+    },
     inventory: [],
-    nextItemId: 1,
+    nextItemId: 2,
     skills: { attack: 0, vitality: 0, greed: 0, luck: 0 },
     achievements: [],
     bossKills: 0,
@@ -142,6 +145,9 @@ function loadState() {
     if (!s.equipment) s.equipment = { head: null, body: null, weapon: null, accessory: null };
     if (!s.inventory) s.inventory = [];
     if (!s.nextItemId) s.nextItemId = 1;
+    if (!s.equipment.weapon && s.inventory.length === 0) {
+      s.equipment.weapon = { id: s.nextItemId++, slot: 'weapon', name: '木剑', icon: 'swordWep', dmg: 2, hp: 0, rarityIdx: 0, upgradeLevel: 0, affixes: [] };
+    }
     return s; }
   catch(e) { return defaultState(); }
 }
@@ -381,7 +387,7 @@ function playerAttack() {
   attackArc = 1.0;
   const mult = comboMultiplier();
   const atkBuff = 1 + (state.skills.attack * 0.1);
-  const wepDmg = sumEquipStat(itemTotalDmg); const base = (wepDmg + Math.floor(state.level * 0.5)) * atkBuff;
+  const wepDmg = sumEquipStat(itemTotalDmg); const fistDmg = wepDmg > 0 ? 0 : 1; const base = (wepDmg + fistDmg + Math.floor(state.level * 0.5)) * atkBuff;
   const critFromGear = sumEquipStat(it => (it ? it.affixes.filter(a=>a.key==='critBonus').reduce((s,a)=>s+a.value*0.01,0) : 0));
   const critChance = 0.05 + (state.skills.luck * 0.02) + critFromGear;
   const isCrit = Math.random() < critChance;
