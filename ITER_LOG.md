@@ -108,3 +108,9 @@
 - 伤害文字分级: 15px (LEVEL/BOSS/COMBO),14px (CRIT/🏆),11px 普通
 - 文字阴影: 黑色 blur(3) 提升可读性
 - Modal 样式: 圆角+橙光阴影,自定义细滚动条,标题底横线
+## iter 19 (v0.3.25) — 2026-04-18
+- SAVE_KEY bondcat_v3 → bondcat_v4,旧存档隔离避免 schema 冲突
+- Balance: 赤龙王 HP 50→120,XP 50→100,金币 100-300 → 250-600
+- Balance: 宝箱掉率 80%→70% 减少画面密度
+- resetData 重置 weather+combo 状态
+- 脚本语法校验通过 (833 行)

@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=500, height=160">
-<title>邦德猫 v0.3.24</title>
+<title>邦德猫 v0.3.25</title>
 <style>
 * { margin:0; padding:0; box-sizing:border-box; }
 body { width:500px; height:160px; overflow:hidden; background:transparent; font-family:'Segoe UI',sans-serif; user-select:none; }
@@ -49,7 +49,7 @@ canvas { display:block; }
 </head>
 <body>
 <div id="titlebar" data-tauri-drag-region>
-  <span class="title" data-tauri-drag-region>邦德猫 v0.3.24</span>
+  <span class="title" data-tauri-drag-region>邦德猫 v0.3.25</span>
   <span class="stats" id="stats" data-tauri-drag-region></span>
   <div class="btns">
     <button onclick="openModal('backpack')">📦</button>
@@ -118,7 +118,7 @@ function drawImg(img, x, y, w, h, flash) {
 }
 
 // ============ GAME STATE ============
-const SAVE_KEY = 'bondcat_v3';
+const SAVE_KEY = 'bondcat_v4';
 let state = loadState();
 
 function defaultState() {
@@ -172,7 +172,7 @@ const MONSTER_TYPES = [
   { name:'蝙蝠', img:'bat', size:40, hp:5, xpVal:4, goldMin:5, goldMax:12, minLv:2, isBoss:false },
   { name:'骷髅', img:'skull', size:44, hp:8, xpVal:7, goldMin:8, goldMax:20, minLv:4, isBoss:false },
   { name:'哥布林', img:'goblin', size:48, hp:16, xpVal:15, goldMin:20, goldMax:50, minLv:6, isBoss:false },
-  { name:'赤龙王', img:'dragon', size:64, hp:50, xpVal:50, goldMin:100, goldMax:300, minLv:10, isBoss:true },
+  { name:'赤龙王', img:'dragon', size:64, hp:120, xpVal:100, goldMin:250, goldMax:600, minLv:10, isBoss:true },
 ];
 
 function pickMonsterType() {
@@ -292,7 +292,7 @@ function killMonster(m) {
     floatTexts.push({ x: 250, y: 40, text: '💥 BOSS 已斩!', color: '#ffff40', life: 2.0 });
   }
   // chest drop 80%
-  if (Math.random() < 0.8) {
+  if (Math.random() < 0.7) {
     const r = Math.random();
     const rarity = r < 0.6 ? 0 : (r < 0.9 ? 1 : 2);
     const greedBuff = 1 + (state.skills.greed * 0.1); const gold = Math.ceil((t.goldMin + Math.floor(Math.random() * (t.goldMax - t.goldMin + 1))) * greedBuff);
@@ -453,7 +453,7 @@ function buyOutfit(i) {
 }
 function equipOutfit(i) { state.outfit = i; saveState(); openModal('shop'); }
 
-function resetData() { state = defaultState(); monsters = []; particles = []; floatTexts = []; chestDrops = []; saveState(); }
+function resetData() { state = defaultState(); monsters = []; particles = []; floatTexts = []; chestDrops = []; weatherDrops = []; comboCount = 0; comboTimer = 0; lastComboMilestone = 0; saveState(); }
 
 // ============ UPDATE & RENDER ============
 let lastTime = performance.now();
