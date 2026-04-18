@@ -19,3 +19,8 @@
 - chest_normal.png (木宝箱)
 - chest_rare.png (蓝宝石宝箱)
 - chest_epic.png (紫水晶史诗宝箱)
+
+## iter 5 (v0.3.11) — 2026-04-18
+- weapon_sword.png (木剑 DMG+1)
+- weapon_hammer.png (铁锤 DMG+3)
+- weapon_wand.png (魔杖 DMG+6)
