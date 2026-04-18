@@ -78,3 +78,11 @@
 - state 加 bossKills/maxCombo/achievements[] 追踪
 - checkAchievements() 每秒轮询
 - HUD: 🏆 按钮打开成就面板,显示 ✅/🔒 状态
+
+## iter 14 (v0.3.20) — 2026-04-18
+- 昼夜循环: new Date() 取系统时钟,12点白天/0点夜晚,过渡基于 distFromNoon
+- nightF 因子 0-1 驱动:
+  - 星空透明度 (白天隐藏)
+  - 月亮 (夜晚,带 crescent 切月+光晕)
+  - 太阳 (白天,自转光线)
+- 过渡期 (早晚 6-9 点) 日月都半透明
