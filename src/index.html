@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=500, height=160">
-<title>邦德猫 v0.3.18</title>
+<title>邦德猫 v0.3.19</title>
 <style>
 * { margin:0; padding:0; box-sizing:border-box; }
 body { width:500px; height:160px; overflow:hidden; background:transparent; font-family:'Segoe UI',sans-serif; user-select:none; }
@@ -46,12 +46,13 @@ canvas { display:block; }
 </head>
 <body>
 <div id="titlebar" data-tauri-drag-region>
-  <span class="title" data-tauri-drag-region>邦德猫 v0.3.18</span>
+  <span class="title" data-tauri-drag-region>邦德猫 v0.3.19</span>
   <span class="stats" id="stats" data-tauri-drag-region></span>
   <div class="btns">
     <button onclick="openModal('backpack')">📦</button>
     <button onclick="openModal('shop')">🛒</button>
     <button onclick="openModal('skills')">🌟</button>
+    <button onclick="openModal('achievements')">🏆</button>
     <button onclick="hideWindow()">✕</button>
   </div>
 </div>
@@ -125,10 +126,13 @@ function defaultState() {
     weaponOwned: [true, false, false],
     outfitOwned: [true, false, false],
     skills: { attack: 0, vitality: 0, greed: 0 },
+    achievements: [],
+    bossKills: 0,
+    maxCombo: 0,
   };
 }
 function loadState() {
-  try { const s = JSON.parse(localStorage.getItem(SAVE_KEY)); if (!s || s.gold === undefined) return defaultState(); if (!s.skills) s.skills = { attack:0, vitality:0, greed:0 }; return s; }
+  try { const s = JSON.parse(localStorage.getItem(SAVE_KEY)); if (!s || s.gold === undefined) return defaultState(); if (!s.skills) s.skills = { attack:0, vitality:0, greed:0 }; if (!s.achievements) s.achievements = []; if (s.bossKills === undefined) s.bossKills = 0; if (s.maxCombo === undefined) s.maxCombo = 0; return s; }
   catch(e) { return defaultState(); }
 }
 function saveState() { localStorage.setItem(SAVE_KEY, JSON.stringify(state)); }
@@ -225,6 +229,7 @@ function playerAttack() {
     if (target.hp <= 0) killMonster(target);
     comboCount++;
     comboTimer = 2.0;
+    if (comboCount > state.maxCombo) state.maxCombo = comboCount;
     const milestones = [5,10,20,30];
     for (const ms of milestones) {
       if (comboCount === ms && lastComboMilestone < ms) {
@@ -327,6 +332,42 @@ function openModal(type) {
     }
     content.innerHTML = html;
   }
+}
+
+const ACHIEVEMENTS = [
+  { id:'first_blood', name:'首杀', desc:'击败第一只怪物', check: s => s.kills >= 1, reward: 10 },
+  { id:'slayer_50', name:'猎人', desc:'累计击杀 50', check: s => s.kills >= 50, reward: 100 },
+  { id:'slayer_500', name:'屠戮者', desc:'累计击杀 500', check: s => s.kills >= 500, reward: 1000 },
+  { id:'rich', name:'小康', desc:'持有 1000 金币', check: s => s.gold >= 1000, reward: 200 },
+  { id:'tycoon', name:'巨贾', desc:'持有 10000 金币', check: s => s.gold >= 10000, reward: 2000 },
+  { id:'level_5', name:'学徒', desc:'达到 5 级', check: s => s.level >= 5, reward: 50 },
+  { id:'level_15', name:'大师', desc:'达到 15 级', check: s => s.level >= 15, reward: 500 },
+  { id:'combo_10', name:'连击手', desc:'连击 10', check: s => s.maxCombo >= 10, reward: 100 },
+  { id:'combo_30', name:'机枪手', desc:'连击 30', check: s => s.maxCombo >= 30, reward: 500 },
+  { id:'boss_slayer', name:'屠龙者', desc:'首次击杀 BOSS', check: s => s.bossKills >= 1, reward: 1000 },
+];
+
+function checkAchievements() {
+  let unlocked = false;
+  for (const a of ACHIEVEMENTS) {
+    if (state.achievements.includes(a.id)) continue;
+    if (a.check(state)) {
+      state.achievements.push(a.id);
+      state.gold += a.reward;
+      floatTexts.push({ x: 250, y: 30, text: '🏆 ' + a.name, color: '#ffd700', life: 2.5 });
+      floatTexts.push({ x: 250, y: 50, text: '+' + a.reward + '💰', color: '#ffd700', life: 2.5 });
+      for (let i = 0; i < 30; i++) {
+        particles.push({
+          x: 250, y: 40,
+          vx: (Math.random()-0.5)*200, vy: -Math.random()*180 - 40,
+          color: '#ffd700', life: 1.0 + Math.random()*0.5,
+          size: 4, glow: true, gravity: 160, drag: 0.97,
+        });
+      }
+      unlocked = true;
+    }
+  }
+  if (unlocked) saveState();
 }
 
 function skillCost(level) { return 50 * (level + 1) * (level + 1); }
@@ -590,6 +631,9 @@ function gameLoop(now) {
     render(now);
     // update stats
     const comboStr = comboCount >= 2 ? ` 🔥${comboCount}x${comboMultiplier()}` : '';
+    if (!window._achTick) window._achTick = 0;
+    window._achTick++;
+    if (window._achTick % 60 === 0) checkAchievements();
     document.getElementById('stats').textContent = `💰${state.gold} ⚔️${state.kills} Lv${state.level}${comboStr}`;
   } catch(e) { console.error(e); }
   requestAnimationFrame(gameLoop);
