@@ -131,3 +131,8 @@
 - 13 张 PNG 后处理去白底 (PIL threshold 230 + 15px 羽化)
 - 挥砍动画收窄: 弧度 0.8π (原 1.1π),武器缩小 28→22,trail 半径 18
 - 标题栏加回 🎯 输入计数诊断
+
+## v0.4.5 — 2026-04-18 — 核心机制打通庆祝版
+- 权限配齐: Accessibility + Input Monitoring 都需独立授权
+- 移除 stats 行诊断 (🟢⌨N🖱M),改回纯游戏 HUD
+- 权限心得已存 memory

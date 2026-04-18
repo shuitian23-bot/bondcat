@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=500, height=160">
-<title>邦德猫 v0.4.4</title>
+<title>邦德猫 v0.4.5</title>
 <style>
 * { margin:0; padding:0; box-sizing:border-box; }
 body { width:500px; height:160px; overflow:hidden; background:transparent; font-family:'Segoe UI',sans-serif; user-select:none; }
@@ -49,7 +49,7 @@ canvas { display:block; }
 </head>
 <body>
 <div id="titlebar" data-tauri-drag-region>
-  <span class="title" data-tauri-drag-region>邦德猫 v0.4.4</span>
+  <span class="title" data-tauri-drag-region>邦德猫 v0.4.5</span>
   <span class="stats" id="stats" data-tauri-drag-region></span>
   <div class="btns">
     <button onclick="openModal('backpack')">📦</button>
@@ -764,8 +764,7 @@ function gameLoop(now) {
     window._achTick++;
     if (window._achTick % 60 === 0) checkAchievements();
     const xpNeeded = state.level * 15; const xpPct = Math.min(100, (state.xp / xpNeeded) * 100); document.getElementById('xpbar').style.width = xpPct + '%';
-    const tapIcon = window.tapStatus === 'ok' ? '🟢' : (window.tapStatus === 'fail' ? '🔴' : '🟡');
-    document.getElementById('stats').textContent = `💰${state.gold} ⚔️${state.kills} Lv${state.level}${comboStr} ${tapIcon}⌨${window.keyHits||0}🖱${window.mouseHits||0}`;
+    document.getElementById('stats').textContent = `💰${state.gold} ⚔️${state.kills} Lv${state.level}${comboStr}`;
   } catch(e) { console.error(e); }
   requestAnimationFrame(gameLoop);
 }
