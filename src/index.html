@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=500, height=160">
-<title>邦德猫 v0.3.6</title>
+<title>邦德猫 v0.3.13</title>
 <style>
 * { margin:0; padding:0; box-sizing:border-box; }
 body { width:500px; height:160px; overflow:hidden; background:transparent; font-family:'Segoe UI',sans-serif; user-select:none; }
@@ -46,7 +46,7 @@ canvas { display:block; }
 </head>
 <body>
 <div id="titlebar" data-tauri-drag-region>
-  <span class="title" data-tauri-drag-region>邦德猫 v0.3.6</span>
+  <span class="title" data-tauri-drag-region>邦德猫 v0.3.13</span>
   <span class="stats" id="stats" data-tauri-drag-region></span>
   <div class="btns">
     <button onclick="openModal('backpack')">📦</button>
@@ -63,118 +63,51 @@ canvas { display:block; }
 <div id="modal"><div class="panel" id="modalContent"></div><div class="close-hint">ESC 关闭</div></div>
 
 <script>
-// ============ SPRITES ============
-const CAT = [
-  '....OO......OO..',
-  '...OSSO....OSSO.',
-  '..OOOOOOOOOOOOOO',
-  '..OOOOOOOOOOOOOO',
-  '..OOKKKKKKKKKOO.',
-  '..OOKWKKKKWKOO..',
-  '..OOOOOPPOOOO...',
-  '..OOOOOOOOOOOO..',
-  '..OOOEEEEEEOOO..',
-  '..OOOEEEEEEOOO..',
-  '..OOOOOOOOOOOO..',
-  '..OOOOOOOOOOOO..',
-  '..OO..OOOO..OO..',
-  '..OO..OOOO..OO..',
-  '..PP...PP...PP..',
-  '................',
-];
-const CAT_COLORS = {O:'#f0a040',S:'#d07010',K:'#222222',W:'#88aaff',P:'#ffb090',E:'#ffe0a0'};
+// ============ IMAGE ASSETS ============
+const IMG = {};
+const IMG_SOURCES = {
+  cat: 'assets/cat.png',
+  slime: 'assets/slime.png',
+  bat: 'assets/bat.png',
+  skull: 'assets/skull.png',
+  goblin: 'assets/goblin.png',
+  dragon: 'assets/dragon_boss.png',
+  chestN: 'assets/chest_normal.png',
+  chestR: 'assets/chest_rare.png',
+  chestE: 'assets/chest_epic.png',
+  ground: 'assets/ground.png',
+  swordWep: 'assets/weapon_sword.png',
+  hammerWep: 'assets/weapon_hammer.png',
+  wandWep: 'assets/weapon_wand.png',
+};
+let IMG_LOADED = 0;
+const IMG_TOTAL = Object.keys(IMG_SOURCES).length;
+for (const [k, src] of Object.entries(IMG_SOURCES)) {
+  const im = new Image();
+  im.onload = () => { IMG_LOADED++; };
+  im.onerror = () => { console.error('img failed', src); IMG_LOADED++; };
+  im.src = src;
+  IMG[k] = im;
+}
+// Particle colors per monster type (since no more sprite colors)
+const MONSTER_PARTICLE_COLOR = { slime:'#44cc44', bat:'#9944cc', skull:'#e8e8e8', goblin:'#66aa44', dragon:'#cc2222' };
 
-const SLIME = [
-  '..........',
-  '..GGGGGG..',
-  '.GGGGGGGG.',
-  'GGWGGGGWGG',
-  'GGGGGGGGGG',
-  'GGGGGGGGGG',
-  'GLGGGGGGGG',
-  '.GGGGGGGG.',
-  '..GGGGGG..',
-  '..........',
-];
-const SLIME_COLORS = {G:'#44cc44',W:'#ffffff',L:'#88ff88'};
-
-const BAT = [
-  '..P......P..',
-  '.PP......PP.',
-  'PPP..PP..PPP',
-  'PPPPPPPPPPPP',
-  '.PPPRPPPPPP.',
-  '..PPPPPPPP..',
-  '...PPPPPP...',
-  '....P..P....',
-  '............',
-  '............',
-];
-const BAT_COLORS = {P:'#9944cc',R:'#ff4444'};
-
-const SKULL = [
-  '..WWWWWW..',
-  '.WWWWWWWW.',
-  'WWBWWWWBWW',
-  'WWWWWWWWWW',
-  'WWWWWWWWWW',
-  '.WWWWWWWW.',
-  '..WBWBWW..',
-  '...WWWW...',
-  '..WWWWWW..',
-  '..W.WW.W..',
-  '..W.WW.W..',
-  '..W.WW.W..',
-];
-const SKULL_COLORS = {W:'#e8e8e8',B:'#222222'};
-
-const CHEST_NORMAL = [
-  '........',
-  '.BBBBBB.',
-  'BBBYBBBB',
-  'BBBBBBBB',
-  'BBBYBBBB',
-  'BBBBBBBB',
-  '.BBBBBB.',
-  '........',
-];
-const CHEST_RARE = [
-  '........',
-  '.CCCCCC.',
-  'CCCWCCCC',
-  'CCCCCCCC',
-  'CCCWCCCC',
-  'CCCCCCCC',
-  '.CCCCCC.',
-  '........',
-];
-const CHEST_EPIC = [
-  '........',
-  '.PPPPPP.',
-  'PPPWPPPP',
-  'PPPPPPPP',
-  'PPPWPPPP',
-  'PPPPPPPP',
-  '.PPPPPP.',
-  '........',
-];
-const CHEST_COLORS_N = {B:'#8B4513',Y:'#FFD700'};
-const CHEST_COLORS_R = {C:'#4488ff',W:'#ffffff'};
-const CHEST_COLORS_E = {P:'#aa44ff',W:'#ffffff'};
-
-// ============ DRAW SPRITE ============
+// ============ DRAW HELPER ============
 const canvas = document.getElementById('game');
 const ctx = canvas.getContext('2d');
 ctx.imageSmoothingEnabled = false;
 
-function drawSprite(sprite, colors, x, y, scale, flash) {
-  for (let r = 0; r < sprite.length; r++) {
-    for (let c = 0; c < sprite[r].length; c++) {
-      const ch = sprite[r][c];
-      if (ch === '.') continue;
-      ctx.fillStyle = flash ? '#ffffff' : (colors[ch] || '#ff00ff');
-      ctx.fillRect(x + c * scale, y + r * scale, scale, scale);
-    }
+function drawImg(img, x, y, w, h, flash) {
+  if (!img || !img.complete) return;
+  ctx.drawImage(img, x, y, w, h);
+  if (flash) {
+    // White tint overlay for hit feedback
+    ctx.save();
+    ctx.globalCompositeOperation = 'source-atop';
+    ctx.globalAlpha = 0.7;
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(x, y, w, h);
+    ctx.restore();
   }
 }
 
@@ -219,9 +152,9 @@ for (let i = 0; i < 40; i++) {
 }
 
 const MONSTER_TYPES = [
-  { name:'史莱姆', sprite:SLIME, colors:SLIME_COLORS, hp:3, scale:3, xpVal:2, goldMin:3, goldMax:8 },
-  { name:'蝙蝠', sprite:BAT, colors:BAT_COLORS, hp:5, scale:3, xpVal:4, goldMin:5, goldMax:12 },
-  { name:'骷髅', sprite:SKULL, colors:SKULL_COLORS, hp:8, scale:3, xpVal:7, goldMin:8, goldMax:20 },
+  { name:'史莱姆', img:'slime', size:40, hp:3, xpVal:2, goldMin:3, goldMax:8 },
+  { name:'蝙蝠', img:'bat', size:40, hp:5, xpVal:4, goldMin:5, goldMax:12 },
+  { name:'骷髅', img:'skull', size:44, hp:8, xpVal:7, goldMin:8, goldMax:20 },
 ];
 
 function spawnMonster() {
@@ -231,7 +164,7 @@ function spawnMonster() {
   const t = MONSTER_TYPES[typeIdx];
   const hpMult = 1 + (state.level - 1) * 0.3;
   monsters.push({
-    type: typeIdx, x: 350 + Math.random() * 100, y: 136 - t.sprite.length * t.scale - 8,
+    type: typeIdx, x: 350 + Math.random() * 100, y: 136 - t.size - 8,
     hp: Math.ceil(t.hp * hpMult), maxHp: Math.ceil(t.hp * hpMult),
     speed: 25 + Math.random() * 10, flash: 0, atkTimer: 0,
   });
@@ -280,7 +213,7 @@ function killMonster(m) {
   // particles
   for (let i = 0; i < 12; i++) {
     particles.push({ x: m.x + 15, y: m.y + 15, vx: (Math.random()-0.5)*120, vy: (Math.random()-0.5)*120,
-      color: t.colors[Object.keys(t.colors)[0]], life: 0.6 + Math.random()*0.3 });
+      color: MONSTER_PARTICLE_COLOR[t.img] || '#ffffff', life: 0.6 + Math.random()*0.3 });
   }
   // chest drop 80%
   if (Math.random() < 0.8) {
@@ -460,27 +393,28 @@ function render(time) {
     ctx.fillRect(Math.floor(s.x), Math.floor(s.y), Math.ceil(s.s), Math.ceil(s.s));
   }
 
-  // grass
-  ctx.fillStyle = '#1a5c1a';
-  ctx.fillRect(0, 128, 500, 8);
-  for (let i = 0; i < 500; i += 6) {
-    ctx.fillStyle = i % 12 < 6 ? '#2a7a2a' : '#1a6a1a';
-    ctx.fillRect(i, 126, 4, 2);
+  // grass ground (tiled)
+  if (IMG.ground && IMG.ground.complete) {
+    for (let i = 0; i < 500; i += 64) {
+      ctx.drawImage(IMG.ground, i, 120, 64, 16);
+    }
+  } else {
+    ctx.fillStyle = '#1a5c1a';
+    ctx.fillRect(0, 128, 500, 8);
   }
 
   // chest drops
   for (const c of chestDrops) {
-    const sp = c.rarity === 0 ? CHEST_NORMAL : (c.rarity === 1 ? CHEST_RARE : CHEST_EPIC);
-    const co = c.rarity === 0 ? CHEST_COLORS_N : (c.rarity === 1 ? CHEST_COLORS_R : CHEST_COLORS_E);
-    drawSprite(sp, co, c.x, c.y, 2, false);
+    const cimg = c.rarity === 0 ? IMG.chestN : (c.rarity === 1 ? IMG.chestR : IMG.chestE);
+    drawImg(cimg, c.x, c.y, 24, 24, false);
   }
 
   // monsters
   for (const m of monsters) {
     const t = MONSTER_TYPES[m.type];
-    drawSprite(t.sprite, t.colors, m.x, m.y, t.scale, m.flash > 0);
+    drawImg(IMG[t.img], m.x, m.y, t.size, t.size, m.flash > 0);
     // hp bar
-    const w = t.sprite[0].length * t.scale;
+    const w = t.size;
     const hpRatio = m.hp / m.maxHp;
     ctx.fillStyle = '#333';
     ctx.fillRect(m.x, m.y - 5, w, 3);
@@ -489,24 +423,30 @@ function render(time) {
   }
 
   // cat
-  const catX = 80, catBaseY = 136 - 16 * 3 - 8;
+  const CAT_SIZE = 52;
+  const catX = 80, catBaseY = 136 - CAT_SIZE - 8;
   let catY = catBaseY;
-  if (attackAnim > 0) catY -= 2; // slight jump
+  if (attackAnim > 0) catY -= 2;
   const catVisible = catDead > 0 ? (Math.floor(catDead * 6) % 2 === 0) : true;
   if (catVisible) {
+    drawImg(IMG.cat, catX, catY, CAT_SIZE, CAT_SIZE, catFlash > 0);
     // outfit tint overlay
-    let catColors = {...CAT_COLORS};
-    if (state.outfit === 1) { catColors.O = '#8888cc'; catColors.S = '#6666aa'; } // knight: blue-ish
-    if (state.outfit === 2) { catColors.O = '#cc44ff'; catColors.S = '#aa22dd'; } // magic: purple
-    drawSprite(CAT, catColors, catX, catY, 3, catFlash > 0);
+    if (state.outfit !== 0) {
+      ctx.save();
+      ctx.globalCompositeOperation = 'source-atop';
+      ctx.globalAlpha = 0.35;
+      ctx.fillStyle = state.outfit === 1 ? '#4466cc' : '#cc44ff';
+      ctx.fillRect(catX, catY, CAT_SIZE, CAT_SIZE);
+      ctx.restore();
+    }
   }
 
   // cat hp bar
   const hpRatio = state.catHp / state.catMaxHp;
   ctx.fillStyle = '#333';
-  ctx.fillRect(catX, catY - 7, 48, 4);
+  ctx.fillRect(catX, catY - 7, CAT_SIZE, 4);
   ctx.fillStyle = hpRatio > 0.3 ? '#4c4' : '#c44';
-  ctx.fillRect(catX, catY - 7, 48 * hpRatio, 4);
+  ctx.fillRect(catX, catY - 7, CAT_SIZE * hpRatio, 4);
 
   // weapon swing arc
   if (attackArc > 0) {

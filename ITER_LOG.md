@@ -29,3 +29,12 @@
 - ground.png (可平铺草地条)
 - dragon_boss.png (红龙终极BOSS,64x64,用于后续boss战)
 - 素材库已齐: 12个 PNG (猫/3怪/mini-boss/龙BOSS/3宝箱/3武器/地面)
+
+## iter 7 (v0.3.13) — 2026-04-18
+- **核心重构**: drawSprite (fillRect 字符数组) → drawImg (Image + drawImage)
+- 新增 IMG 对象预加载 13 张素材
+- MONSTER_TYPES 改 img 键引用,size 替代 sprite.length*scale
+- 宝箱/猫/怪物全走 PNG 渲染
+- 猫装扮色 via canvas composite source-atop 覆色
+- 地面改 PNG tile 平铺
+- flash 击中效果: source-atop 白色半透明覆盖
