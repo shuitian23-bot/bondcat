@@ -310,6 +310,47 @@ function sellItem(id) {
   saveState();
   if (modalOpen) openModal('backpack');
 }
+// 装备合成: 3 件同品质同槽位 -> 1 件品质+1 (最高到传说)
+function mergeSlotRarity(slot, rarityIdx) {
+  if (rarityIdx >= RARITY.length - 1) return;
+  const matches = state.inventory.filter(it => it.slot === slot && it.rarityIdx === rarityIdx);
+  if (matches.length < 3) return;
+  // remove first 3
+  const ids = matches.slice(0, 3).map(it => it.id);
+  state.inventory = state.inventory.filter(it => !ids.includes(it.id));
+  const newItem = genItem(slot, rarityIdx + 1);
+  state.inventory.push(newItem);
+  floatTexts.push({ x: 200, y: 30, text: '合成成功! ' + RARITY[rarityIdx+1].name + newItem.name, color: RARITY[rarityIdx+1].color, life: 2.0 });
+  saveState();
+  if (modalOpen) openModal('backpack');
+}
+// 装备重铸: 花金币重随机词缀, 保持品质和基础属性
+function rerollCost(it) { return 200 * (it.rarityIdx + 1) * (it.rarityIdx + 1); }
+function rerollItem(id) {
+  const found = findItemById(id);
+  if (!found) return;
+  const it = found.item;
+  const r = RARITY[it.rarityIdx];
+  if (r.affixCount === 0) {
+    floatTexts.push({ x: 200, y: 40, text: '普通装备无词缀', color: '#888', life: 1.2 });
+    return;
+  }
+  const cost = rerollCost(it);
+  if (state.gold < cost) return;
+  state.gold -= cost;
+  // 重新 roll 词缀 (从 AFFIX_POOL)
+  const affixes = [];
+  const available = AFFIX_POOL.slice();
+  for (let i = 0; i < r.affixCount && available.length; i++) {
+    const idx = Math.floor(Math.random() * available.length);
+    const a = available.splice(idx, 1)[0];
+    affixes.push({ key: a.key, label: a.label, value: a.roll() });
+  }
+  it.affixes = affixes;
+  floatTexts.push({ x: 200, y: 40, text: '♻ 重铸完成', color: r.color, life: 1.5 });
+  saveState();
+  if (modalOpen) openModal('backpack');
+}
 function itemStatSummary(it) {
   const parts = [];
   const d = itemTotalDmg(it); if (d > 0) parts.push('攻+' + d);
@@ -683,6 +724,25 @@ function openModal(type) {
       }
     }
     html += '</div>';
+    // 合成快捷 — 按 slot+rarity 聚合, 3 件可合成就显示
+    {
+      const groups = {};
+      for (const it of state.inventory) {
+        const k = it.slot + '_' + it.rarityIdx;
+        groups[k] = groups[k] || { slot: it.slot, rarityIdx: it.rarityIdx, count: 0 };
+        groups[k].count++;
+      }
+      const mergeable = Object.values(groups).filter(g => g.count >= 3 && g.rarityIdx < RARITY.length - 1);
+      if (mergeable.length > 0) {
+        html += '<div style="font-size:9px;color:#ffd700;margin:2px 0">⚗ 合成 (3件合1件升品质)</div>';
+        for (const g of mergeable) {
+          const rc = RARITY[g.rarityIdx].color;
+          const next = RARITY[g.rarityIdx+1];
+          const slotLbl = {head:'头',body:'身',weapon:'武',accessory:'饰'}[g.slot];
+          html += `<div class="row" style="padding:2px 0"><span style="font-size:10px">${slotLbl} ×3 <span style="color:${rc}">${RARITY[g.rarityIdx].name}</span> → <span style="color:${next.color}">${next.name}</span> (${g.count} 可用)</span><button style="font-size:9px;padding:1px 5px;background:#ffb040" onclick="mergeSlotRarity('${g.slot}',${g.rarityIdx})">合</button></div>`;
+        }
+      }
+    }
     // Chest quick-open
     if (totalC > 0) {
       html += `<div style="text-align:center;margin:4px 0"><button onclick="openAllChests()">🗝️ 开箱 (${totalC})</button></div>`;
@@ -705,6 +765,7 @@ function openModal(type) {
           <span style="display:flex;flex-direction:column;gap:1px">
             <button style="font-size:9px;padding:1px 5px" onclick="equipItem(${it.id})">装</button>
             <button style="font-size:9px;padding:1px 5px" onclick="upgradeItem(${it.id})" title="升级">⬆${upCost}</button>
+            <button style="font-size:9px;padding:1px 5px;background:#6a4" onclick="rerollItem(${it.id})" title="重铸词缀">♻${rerollCost(it)}💰</button>
             <button style="font-size:9px;padding:1px 5px;background:#888" onclick="sellItem(${it.id})">卖${sellPrice(it)}💰</button>
           </span>
         </div>`;
