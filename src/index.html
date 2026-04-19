@@ -884,6 +884,51 @@ function openModal(type) {
         </span>${btn}</div>`;
     }
     content.innerHTML = html;
+  } else if (type === 'paperdoll') {
+    const _cls = currentClass();
+    const clsLabel = _cls ? `${_cls.icon} ${_cls.name}` : '未选择';
+    const skin = OUTFITS[state.outfit];
+    const wepDmg = sumEquipStat(itemTotalDmg);
+    const totalHp = state.catMaxHp;
+    const critFromGear = sumEquipStat(it => (it ? it.affixes.filter(a=>a.key==='critBonus').reduce((s,a)=>s+a.value*0.01,0) : 0));
+    const critRate = 0.05 + (state.skills.luck * 0.02) + critFromGear + (_cls ? _cls.critRateAdd : 0) + ((skin && skin.bonus && skin.bonus.key === 'critRateAdd') ? skin.bonus.value : 0) + totalPetCritBonus() + (state.prestigeBuffs.critStart || 0) * 0.01;
+    let html = '<h3>👤 角色面板</h3>';
+    html += `<div class="row"><span>职业</span><span style="color:${_cls?_cls.color:'#888'}">${clsLabel}</span></div>`;
+    html += `<div class="row"><span>等级 / 经验</span><span>Lv ${state.level} (${state.xp}/${state.level * 15})</span></div>`;
+    html += `<div class="row"><span>章节</span><span>${currentChapter().name}</span></div>`;
+    html += `<div class="row"><span>HP</span><span>${state.catHp} / ${totalHp}</span></div>`;
+    html += `<div class="row"><span>攻击</span><span>武器 ${wepDmg} + 宠物 ${totalPetAtkBonus()} + 加成 ${Math.floor(state.level*0.5)}</span></div>`;
+    html += `<div class="row"><span>暴击率</span><span>${(critRate*100).toFixed(1)}%</span></div>`;
+    html += `<div class="row"><span>最高连击</span><span>${state.maxCombo}</span></div>`;
+    html += `<div class="row"><span>Boss 击杀</span><span>${state.bossKills}</span></div>`;
+    html += `<div class="row"><span>转生</span><span>${state.prestigeCount} 次 · 灵魂 ${state.soul}</span></div>`;
+    content.innerHTML = html;
+  } else if (type === 'skills') {
+    let html = '<h3>🌟 技能树 (金币 ' + state.gold + ')</h3>';
+    const skillDefs = [
+      { key: 'attack',   name: '强化攻击', desc: '+10% 攻击/级' },
+      { key: 'vitality', name: '生命强化', desc: '+20 最大HP/级' },
+      { key: 'greed',    name: '贪婪',     desc: '+10% 金币/级' },
+      { key: 'luck',     name: '幸运',     desc: '+2% 暴击/级' },
+    ];
+    for (const def of skillDefs) {
+      const cur = state.skills[def.key] || 0;
+      const cost = skillCost(cur);
+      const maxed = cur >= 10;
+      const affordable = state.gold >= cost;
+      let btn = maxed ? '<button class="owned">满</button>' : `<button onclick="buySkill('${def.key}')" ${affordable?'':'style="background:#555;color:#999"'}>${cost}💰</button>`;
+      html += `<div class="row"><span><b>${def.name}</b> Lv${cur}/10<br><span style="font-size:9px;color:#aaa">${def.desc}</span></span>${btn}</div>`;
+    }
+    content.innerHTML = html;
+  } else if (type === 'achievements') {
+    let html = '<h3>🏆 成就</h3>';
+    for (const a of ACHIEVEMENTS) {
+      const done = state.achievements.includes(a.id);
+      const icon = done ? '✅' : '⬜';
+      const color = done ? '#44dd44' : '#888';
+      html += `<div class="row"><span><span style="color:${color}">${icon} <b>${a.name}</b></span> — <span style="font-size:9px;color:#aaa">${a.desc}</span></span><span style="font-size:9px;color:#ffd700">+${a.reward}💰</span></div>`;
+    }
+    content.innerHTML = html;
   }
 }
 
@@ -1308,15 +1353,15 @@ function render(time) {
     const _skin = OUTFITS[state.outfit] || OUTFITS[0];
     const _skinImg = IMG[_skin.img] || IMG.cat;
     drawImg(_skinImg, catX, catY, CAT_SIZE, CAT_SIZE, catFlash > 0);
-    // 宠物: 猫后方 一字排开 tiny 16x16
+    // 宠物: 猫后方 一字排开 22x22
     for (let i = 0; i < Math.min(state.pets.length, 5); i++) {
       const pt = PET_TYPES.find(x => x.id === state.pets[i].typeId);
       if (!pt) continue;
       const petImg = IMG[pt.img];
       if (!petImg) continue;
-      const px = catX - 20 - i * 18;
-      const py = catBaseY + CAT_SIZE - 18;
-      drawImg(petImg, px, py, 16, 16, false);
+      const px = catX - 26 - i * 24;
+      const py = catBaseY + CAT_SIZE - 24 + Math.sin(time * 0.006 + i) * 1.5;
+      drawImg(petImg, px, py, 22, 22, false);
     }
     // outfit tint overlay
     if (state.outfit !== 0) {
