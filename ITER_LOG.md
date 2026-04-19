@@ -344,3 +344,10 @@
 - 雪原章 weather=snow, 切到熔岩仍下雪 (weatherTimer 30s 周期没到)
 - 每帧强制章节 weather + 切章时清 weatherDrops
 - 用 state.__lastChapterName 检测章节切换边界
+
+## v0.7.11 — 2026-04-20 (pet 可视化 + 武器冲突)
+- 皮肤自带武器 (骑士/法师/刺客) 不再叠加 attackArc 旋转武器贴图, 避免双武器
+- 弧线白色挥砍特效保留对所有皮肤生效
+- 宠物独立攻击: 每 2.5s 对最近怪物造成 atkBonus 伤害
+- 宠物 -> 怪物 画彩色粒子射线 (pet.color), 伤害 floatText 浮字
+- cat_knight/mage/rogue rembg 再扫一轮去边缘残留

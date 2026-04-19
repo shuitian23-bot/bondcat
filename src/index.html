@@ -1197,6 +1197,42 @@ function update(dt) {
   // cat flash
   if (catFlash > 0) catFlash -= dt;
 
+  // 宠物独立攻击 (每 ~2.5s 对最近怪造成其 atkBonus 伤害, 带彩色粒子轨迹)
+  if (!window.__petAtkTimers) window.__petAtkTimers = [];
+  for (let pi = 0; pi < state.pets.length; pi++) {
+    window.__petAtkTimers[pi] = (window.__petAtkTimers[pi] || Math.random() * 2) + dt;
+    if (window.__petAtkTimers[pi] >= 2.5) {
+      window.__petAtkTimers[pi] = 0;
+      const pt = PET_TYPES.find(x => x.id === state.pets[pi].typeId);
+      if (pt && monsters.length > 0) {
+        // 找最近怪 (x 最小)
+        let tgt = null;
+        for (const m of monsters) {
+          if (m.hp <= 0) continue;
+          if (!tgt || m.x < tgt.x) tgt = m;
+        }
+        if (tgt) {
+          tgt.hp -= pt.atkBonus;
+          tgt.flash = 0.1;
+          floatTexts.push({ x: tgt.x + 10, y: tgt.y - 15, text: '-' + pt.atkBonus, color: pt.color, life: 0.6 });
+          // 粒子轨迹 (从宠物到怪物)
+          const petStartX = 80 - 26 - pi * 24 + 11;
+          const petStartY = 136 - 60 + 2;
+          for (let k = 0; k < 6; k++) {
+            const t = k / 6;
+            particles.push({
+              x: petStartX + (tgt.x + tgt.size/2 - petStartX) * t,
+              y: petStartY + (tgt.y + tgt.size/2 - petStartY) * t,
+              vx: 0, vy: 0,
+              color: pt.color, life: 0.3, size: 2, glow: true,
+              gravity: 0, drag: 1,
+            });
+          }
+          if (tgt.hp <= 0) killMonster(tgt);
+        }
+      }
+    }
+  }
   // monsters
   for (const m of monsters) {
     if (m.hp <= 0) continue;
@@ -1441,26 +1477,32 @@ function render(time) {
   ctx.fillRect(catX, catY - 7, CAT_SIZE * hpRatio, 4);
 
   // weapon swing (rotating PNG during attack)
+  // 皮肤非"普通"时自带武器, 不叠加挥砍武器贴图, 只留弧线
+  const _sskin = OUTFITS[state.outfit];
+  const _skinHasWeapon = _sskin && _sskin.img !== 'cat';
   if (attackArc > 0) {
-    const wep = state.equipment.weapon; const wepKey = wep ? wep.icon : 'swordWep'; const wepImg = IMG[wepKey];
-    if (wep && wepImg && wepImg.complete) {
-      const pivotX = catX + CAT_SIZE - 4;
-      const pivotY = catY + CAT_SIZE * 0.45;
-      const swingProgress = 1 - attackArc; // 0→1 across swing
-      const angle = -Math.PI * 0.3 + swingProgress * Math.PI * 0.8;
-      ctx.save();
-      ctx.translate(pivotX, pivotY);
-      ctx.rotate(angle);
-      const wSize = 22;
-      ctx.drawImage(wepImg, 0, -wSize/2, wSize, wSize);
-      ctx.restore();
-      // Slash trail (white arc)
-      ctx.strokeStyle = `rgba(255,255,255,${attackArc * 0.6})`;
-      ctx.lineWidth = 2;
-      ctx.beginPath();
-      ctx.arc(pivotX, pivotY, 18, -Math.PI * 0.3, angle);
-      ctx.stroke();
+    const pivotX = catX + CAT_SIZE - 4;
+    const pivotY = catY + CAT_SIZE * 0.45;
+    const swingProgress = 1 - attackArc;
+    const angle = -Math.PI * 0.3 + swingProgress * Math.PI * 0.8;
+    // 没自带武器的皮肤才画旋转武器贴图
+    if (!_skinHasWeapon) {
+      const wep = state.equipment.weapon; const wepKey = wep ? wep.icon : 'swordWep'; const wepImg = IMG[wepKey];
+      if (wep && wepImg && wepImg.complete) {
+        ctx.save();
+        ctx.translate(pivotX, pivotY);
+        ctx.rotate(angle);
+        const wSize = 22;
+        ctx.drawImage(wepImg, 0, -wSize/2, wSize, wSize);
+        ctx.restore();
+      }
     }
+    // Slash 弧永远画
+    ctx.strokeStyle = `rgba(255,255,255,${Math.min(1, attackArc) * 0.8})`;
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(pivotX, pivotY, 22, -Math.PI * 0.3, angle);
+    ctx.stroke();
   }
 
   // particles (size + glow)
