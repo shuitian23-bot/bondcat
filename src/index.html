@@ -139,6 +139,7 @@ recomputeMaxHp();
 
 function defaultState() {
   return {
+    chapterBossPending: 0,
     gold: 0, kills: 0, level: 1, xp: 0,
     catHp: 100, catMaxHp: 100,
     outfit: 0, outfitOwned: [true, false, false],
@@ -156,7 +157,7 @@ function defaultState() {
   };
 }
 function loadState() {
-  try { const s = JSON.parse(localStorage.getItem(SAVE_KEY)); if (!s || s.gold === undefined) return defaultState(); if (!s.skills) s.skills = { attack:0, vitality:0, greed:0, luck:0 }; if (s.skills.luck === undefined) s.skills.luck = 0; if (!s.achievements) s.achievements = []; if (s.bossKills === undefined) s.bossKills = 0; if (s.maxCombo === undefined) s.maxCombo = 0;
+  try { const s = JSON.parse(localStorage.getItem(SAVE_KEY)); if (!s || s.gold === undefined) return defaultState(); if (!s.skills) s.skills = { attack:0, vitality:0, greed:0, luck:0 }; if (s.skills.luck === undefined) s.skills.luck = 0; if (!s.achievements) s.achievements = []; if (s.bossKills === undefined) s.bossKills = 0; if (s.maxCombo === undefined) s.maxCombo = 0; if (s.chapterBossPending === undefined) s.chapterBossPending = 0;
     if (!s.equipment) s.equipment = { head: null, body: null, weapon: null, accessory: null };
     if (!s.inventory) s.inventory = [];
     if (!s.nextItemId) s.nextItemId = 1;
@@ -386,6 +387,14 @@ function pickMonsterType() {
 function spawnMonster() {
   if (monsters.length >= 4) return;
   let typeIdx = pickMonsterType();
+  let isChapterBoss = false;
+  if (state.chapterBossPending) {
+    // 强制出当前等级可用的最高阶 boss
+    for (let i = MONSTER_TYPES.length - 1; i >= 0; i--) {
+      if (MONSTER_TYPES[i].isBoss && state.level >= MONSTER_TYPES[i].minLv) { typeIdx = i; isChapterBoss = true; break; }
+    }
+    state.chapterBossPending = 0;
+  }
   // 同屏只允许 1 只 boss; 若已存在 boss 且抽到 boss, 重抽; 仍是 boss 则降级为最高阶普通怪
   const bossAlive = monsters.some(m => MONSTER_TYPES[m.type].isBoss);
   if (bossAlive && MONSTER_TYPES[typeIdx].isBoss) {
@@ -405,9 +414,12 @@ function spawnMonster() {
     type: typeIdx, x: 360 + Math.random() * 100, y: 136 - t.size - 8,
     hp: finalHp, maxHp: finalHp, elite: isElite,
     speed: (t.img==='skeletonKing'?30: t.img==='shadowBlade'?22: t.img==='elementalLich'?8: t.isBoss?12: (25 + Math.random() * 10)), flash: 0, atkTimer: 0, dodgeTimer: 0,
+    chapterBoss: isChapterBoss,
   });
   if (t.isBoss) {
-    floatTexts.push({ x: 250, y: 30, text: '⚠ BOSS 来袭!', color: '#ff4040', life: 2.0 });
+    const warnText = isChapterBoss ? '★ 章节 BOSS 降临!' : '⚠ BOSS 来袭!';
+    const warnColor = isChapterBoss ? '#ffd700' : '#ff4040';
+    floatTexts.push({ x: 250, y: 30, text: warnText, color: warnColor, life: 2.5 });
   } else if (isElite) {
     floatTexts.push({ x: 250, y: 30, text: '✨ 精英怪!', color: '#ffd700', life: 1.5 });
   }
@@ -484,8 +496,15 @@ function killMonster(m) {
   state.kills++;
   state.xp += t.xpVal;
   const xpNeeded = state.level * 15;
-  if (state.xp >= xpNeeded) { state.level++; state.xp -= xpNeeded; state.catMaxHp += 10; state.catHp = state.catMaxHp;
+  if (state.xp >= xpNeeded) {
+    state.level++; state.xp -= xpNeeded; state.catMaxHp += 10; state.catHp = state.catMaxHp;
     floatTexts.push({ x: 80, y: 20, text: 'LEVEL UP!', color: '#ffff00', life: 1.5 });
+    // 每 10 级触发章节 boss 必现
+    if (state.level % 10 === 0) {
+      state.chapterBossPending = 1;
+      const nextCh = CHAPTERS[Math.floor(state.level / 10) % CHAPTERS.length];
+      floatTexts.push({ x: 250, y: 25, text: '★ 进入 ' + nextCh.name, color: '#ffd700', life: 2.5 });
+    }
   }
   // particles (boss = big explosion)
   const partCount = t.isBoss ? 40 : 14;
@@ -517,7 +536,7 @@ function killMonster(m) {
     const slots = ['head', 'body', 'weapon', 'accessory'];
     const slot = slots[Math.floor(Math.random() * slots.length)];
     const lv = state.level;
-    const weights = t.isBoss ? [1, 2, 3, 5, 8] : [10, 6, Math.max(1, lv - 1), Math.max(0, lv - 4), Math.max(0, lv - 9)];
+    const weights = m.chapterBoss ? [0, 0, 0, 5, 8] : (t.isBoss ? [1, 2, 3, 5, 8] : [10, 6, Math.max(1, lv - 1), Math.max(0, lv - 4), Math.max(0, lv - 9)]);
     const totalW = weights.reduce((s, w) => s + w, 0);
     let rr = Math.random() * totalW, rIdx = 0;
     for (let i = 0; i < weights.length; i++) { rr -= weights[i]; if (rr <= 0) { rIdx = i; break; } }

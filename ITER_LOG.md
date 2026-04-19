@@ -224,3 +224,11 @@
 - 渲染: 天空 fillRect overlay + 地面 multiply 着色 (草原无 overlay 保持原色)
 - 顶栏 stats 加 [章节名] 前缀
 - 章节 boss 必现机制留待 v0.6.1
+
+## v0.6.1 — 2026-04-19
+- **章节 boss 必现 + 必掉紫装**
+- state.chapterBossPending 标记位; 升 10/20/30/... 级时 set 1
+- 下一次 spawnMonster 强制选当前可用最高阶 boss, 弹★ 章节 BOSS 降临! 金字提示
+- chapter boss 击杀掉装备 weights = [0,0,0,5,8] (只出史诗+传说)
+- 普通 boss 仍按原概率 [1,2,3,5,8]
+- defaultState/loadState 都补 chapterBossPending 默认 0 兼容旧存档
