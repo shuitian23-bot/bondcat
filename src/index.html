@@ -56,6 +56,7 @@ canvas { display:block; }
     <button onclick="openModal('backpack')">📦</button>
     <button onclick="openModal('shop')">🛒</button>
     <button onclick="openModal('skills')">🌟</button>
+    <button onclick="openModal('prestige')">★</button>
     <button onclick="openModal('achievements')">🏆</button>
     <button onclick="hideWindow()">✕</button>
   </div>
@@ -142,6 +143,9 @@ recomputeMaxHp();
 
 function defaultState() {
   return {
+    soul: 0,
+    prestigeCount: 0,
+    prestigeBuffs: { atkStart: 0, goldRate: 0, critStart: 0, hpStart: 0 },
     pets: [],
     pendingEggs: 0,
     classId: null,
@@ -163,7 +167,7 @@ function defaultState() {
   };
 }
 function loadState() {
-  try { const s = JSON.parse(localStorage.getItem(SAVE_KEY)); if (!s || s.gold === undefined) return defaultState(); if (!s.skills) s.skills = { attack:0, vitality:0, greed:0, luck:0 }; if (s.skills.luck === undefined) s.skills.luck = 0; if (!s.achievements) s.achievements = []; if (s.bossKills === undefined) s.bossKills = 0; if (s.maxCombo === undefined) s.maxCombo = 0; if (s.chapterBossPending === undefined) s.chapterBossPending = 0; if (s.classId === undefined) s.classId = null; if (!s.pets) s.pets = []; if (s.pendingEggs === undefined) s.pendingEggs = 0; if (!s.outfitOwned || s.outfitOwned.length < 4) s.outfitOwned = [true, s.outfitOwned && s.outfitOwned[1] || false, s.outfitOwned && s.outfitOwned[2] || false, false];
+  try { const s = JSON.parse(localStorage.getItem(SAVE_KEY)); if (!s || s.gold === undefined) return defaultState(); if (!s.skills) s.skills = { attack:0, vitality:0, greed:0, luck:0 }; if (s.skills.luck === undefined) s.skills.luck = 0; if (!s.achievements) s.achievements = []; if (s.bossKills === undefined) s.bossKills = 0; if (s.maxCombo === undefined) s.maxCombo = 0; if (s.chapterBossPending === undefined) s.chapterBossPending = 0; if (s.classId === undefined) s.classId = null; if (!s.pets) s.pets = []; if (s.pendingEggs === undefined) s.pendingEggs = 0; if (s.soul === undefined) s.soul = 0; if (s.prestigeCount === undefined) s.prestigeCount = 0; if (!s.prestigeBuffs) s.prestigeBuffs = { atkStart: 0, goldRate: 0, critStart: 0, hpStart: 0 }; if (!s.outfitOwned || s.outfitOwned.length < 4) s.outfitOwned = [true, s.outfitOwned && s.outfitOwned[1] || false, s.outfitOwned && s.outfitOwned[2] || false, false];
     if (!s.equipment) s.equipment = { head: null, body: null, weapon: null, accessory: null };
     if (!s.inventory) s.inventory = [];
     if (!s.nextItemId) s.nextItemId = 1;
@@ -543,12 +547,12 @@ function playerAttack() {
   attackArc = 1.0;
   const mult = comboMultiplier();
   const atkBuff = 1 + (state.skills.attack * 0.1);
-  const wepDmg = sumEquipStat(itemTotalDmg); const fistDmg = wepDmg > 0 ? 0 : 1; const base = (wepDmg + fistDmg + Math.floor(state.level * 0.5) + totalPetAtkBonus()) * atkBuff;
+  const wepDmg = sumEquipStat(itemTotalDmg); const fistDmg = wepDmg > 0 ? 0 : 1; const prestigeAtk = state.prestigeBuffs.atkStart || 0; const base = (wepDmg + fistDmg + Math.floor(state.level * 0.5) + totalPetAtkBonus() + prestigeAtk) * atkBuff;
   const critFromGear = sumEquipStat(it => (it ? it.affixes.filter(a=>a.key==='critBonus').reduce((s,a)=>s+a.value*0.01,0) : 0));
   const _cls = currentClass();
   const _skinBonusRate = OUTFITS[state.outfit] && OUTFITS[state.outfit].bonus;
   const outfitCritRate = (_skinBonusRate && _skinBonusRate.key === 'critRateAdd') ? _skinBonusRate.value : 0;
-  let critChance = 0.05 + (state.skills.luck * 0.02) + critFromGear + (_cls ? _cls.critRateAdd : 0) + outfitCritRate + totalPetCritBonus();
+  let critChance = 0.05 + (state.skills.luck * 0.02) + critFromGear + (_cls ? _cls.critRateAdd : 0) + outfitCritRate + totalPetCritBonus() + (state.prestigeBuffs.critStart || 0) * 0.01;
   // 刺客被动: 连击 >=5 时暴击率 ×2
   if (_cls && _cls.id === 'rogue' && comboCount >= 5) critChance *= 2;
   const isCrit = Math.random() < critChance;
@@ -650,7 +654,7 @@ function killMonster(m) {
   if (Math.random() < 0.7) {
     const r = Math.random();
     const rarity = r < 0.6 ? 0 : (r < 0.9 ? 1 : 2);
-    const greedBuff = 1 + (state.skills.greed * 0.1); const gold = Math.ceil((t.goldMin + Math.floor(Math.random() * (t.goldMax - t.goldMin + 1))) * greedBuff);
+    const greedBuff = 1 + (state.skills.greed * 0.1) + (state.prestigeBuffs.goldRate || 0) * 0.05; const gold = Math.ceil((t.goldMin + Math.floor(Math.random() * (t.goldMax - t.goldMin + 1))) * greedBuff);
     chestDrops.push({ x: m.x, y: m.y, rarity, gold: m.elite ? gold * 3 : gold, timer: 2.0, collected: false });
   }
   // Item drop
@@ -832,6 +836,25 @@ function openModal(type) {
       }
     }
     content.innerHTML = html;
+  } else if (type === 'prestige') {
+    let html = '<h3>★ 转生殿堂</h3>';
+    html += '<div style="font-size:10px;color:#aaa;margin-bottom:4px">Lv50+ 可转生, 重置等级保留 50% 金币, 获得灵魂点 (永久加成)</div>';
+    html += '<div style="font-size:10px;color:#ffd700;margin:4px 0">灵魂点: ' + state.soul + ' | 转生次数: ' + state.prestigeCount + '</div>';
+    if (canPrestige()) {
+      html += `<div class="row" style="background:#2a1a2e;padding:4px;border-radius:4px"><span><b style="color:#ffd700">★ 立即转生</b><br><span style="font-size:9px;color:#aaa">获得 +${prestigeGain()} 灵魂点</span></span><button onclick="doPrestige()" style="background:#bb44ff">转生</button></div>`;
+    } else {
+      html += `<div style="font-size:10px;color:#888;margin:4px 0">距离转生: Lv${state.level} / Lv50</div>`;
+    }
+    html += '<div style="font-size:10px;color:#888;margin:6px 0 2px 0">永久加成 (花灵魂点):</div>';
+    for (const def of PRESTIGE_BUFFS) {
+      const cur = state.prestigeBuffs[def.key] || 0;
+      const affordable = state.soul >= def.costPer;
+      const maxed = cur >= def.maxLv;
+      let btn = maxed ? '<button class="owned">满</button>' : `<button onclick="buyPrestigeBuff('${def.key}')" ${affordable?'':'style="background:#555;color:#999"'}>${def.costPer}魂</button>`;
+      html += `<div class="row"><span><b>${def.name}</b> Lv${cur}/${def.maxLv}<br><span style="font-size:9px;color:#aaa">${def.desc}</span></span>${btn}</div>`;
+    }
+    content.innerHTML = html;
+    return;
   } else if (type === 'shop') {
     let html = '<h3>🛒 商城 (💰 ' + state.gold + ')</h3>';
     html += '<div style="font-size:10px;color:#aaa;margin:2px 0">🎨 猫咪装扮 — 解锁后点预览图切换</div>';
@@ -961,6 +984,64 @@ function equipOutfit(i) {
   applyOutfitBonus();
   saveState();
   openModal('shop');
+}
+
+// 转生系统
+function canPrestige() { return state.level >= 50; }
+function prestigeGain() {
+  // 灵魂点 = floor(level / 10) + prestigeCount * 2
+  return Math.floor(state.level / 10) + state.prestigeCount * 2;
+}
+function doPrestige() {
+  if (!canPrestige()) return;
+  const gain = prestigeGain();
+  const keepGold = Math.floor(state.gold * 0.5);
+  // 保留: classId, soul, prestigeCount, prestigeBuffs, outfitOwned, outfit
+  const keep = {
+    classId: state.classId,
+    soul: state.soul + gain,
+    prestigeCount: state.prestigeCount + 1,
+    prestigeBuffs: state.prestigeBuffs,
+    outfitOwned: state.outfitOwned,
+    outfit: state.outfit,
+  };
+  state = defaultState();
+  Object.assign(state, keep);
+  state.gold = keepGold;
+  // 应用 prestigeBuffs 到初始状态
+  applyPrestigeStart();
+  saveState();
+  floatTexts.push({ x: 200, y: 30, text: '★ 转生 +' + gain + ' 灵魂', color: '#ffd700', life: 3.0 });
+  closeModal();
+}
+function applyPrestigeStart() {
+  const b = state.prestigeBuffs;
+  // 重算 catMaxHp (加上 hpStart buff)
+  const _cls = currentClass();
+  const _skin = OUTFITS[state.outfit];
+  const outfitHpMult = (_skin && _skin.bonus && _skin.bonus.key === 'hpMult') ? _skin.bonus.value : 1.0;
+  const newMax = Math.floor((100 + b.hpStart * 20) * (_cls ? _cls.hpMult : 1) * outfitHpMult);
+  state.catMaxHp = newMax;
+  state.catHp = newMax;
+}
+// 购买 prestige buff (花灵魂点)
+const PRESTIGE_BUFFS = [
+  { key: 'atkStart',  name: '初始攻击', desc: '+1 起始攻击/级', costPer: 1, maxLv: 10 },
+  { key: 'goldRate',  name: '金币倍率', desc: '+5% 金币掉落/级', costPer: 1, maxLv: 10 },
+  { key: 'critStart', name: '初始暴击', desc: '+1% 起始暴击率/级', costPer: 2, maxLv: 10 },
+  { key: 'hpStart',   name: '初始HP', desc: '+20 起始最大HP/级', costPer: 1, maxLv: 10 },
+];
+function buyPrestigeBuff(k) {
+  const def = PRESTIGE_BUFFS.find(x => x.key === k);
+  if (!def) return;
+  const cur = state.prestigeBuffs[k] || 0;
+  if (cur >= def.maxLv) return;
+  if (state.soul < def.costPer) return;
+  state.soul -= def.costPer;
+  state.prestigeBuffs[k] = cur + 1;
+  applyPrestigeStart();
+  saveState();
+  openModal('prestige');
 }
 
 function resetData() { state = defaultState(); monsters = []; particles = []; floatTexts = []; chestDrops = []; weatherDrops = []; comboCount = 0; comboTimer = 0; lastComboMilestone = 0; saveState(); }

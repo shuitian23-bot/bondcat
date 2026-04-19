@@ -283,3 +283,15 @@
 - 宠物加成: atkBonus (2-12), critBonus (0-5%) 全局叠加到 playerAttack
 - 背包面板顶部显示宠物区 + 孵化按钮
 - 渲染: 猫身后 tiny 16×16 排开, 最多 5 只显示
+
+## v0.7.2 — 2026-04-19 (loop 终点)
+- **转生系统** (loop 计划最后一项)
+- Lv 50+ 可转生, 重置 level/xp/equipment/inventory/pets, 保留 50% 金币 + 职业 + 皮肤
+- 灵魂点 = floor(level / 10) + prestigeCount * 2 (转生奖励)
+- 4 种永久 buff (花灵魂点购买, 每条最高 10 级):
+  - 初始攻击 (1魂/级 +1 攻)
+  - 金币倍率 (1魂/级 +5%)
+  - 初始暴击 (2魂/级 +1%)
+  - 初始HP (1魂/级 +20)
+- 转生殿堂面板 (★ 按钮新加在顶栏)
+- buff 应用: playerAttack base + critChance + greedBuff + applyPrestigeStart()
