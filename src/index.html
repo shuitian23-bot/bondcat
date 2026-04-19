@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=500, height=160">
-<title>邦德猫 v0.5.2</title>
+<title>邦德猫</title>
 <style>
 * { margin:0; padding:0; box-sizing:border-box; }
 body { width:500px; height:160px; overflow:hidden; background:transparent; font-family:'Segoe UI',sans-serif; user-select:none; }
@@ -49,7 +49,7 @@ canvas { display:block; }
 </head>
 <body>
 <div id="titlebar" data-tauri-drag-region>
-  <span class="title" data-tauri-drag-region>邦德猫 v0.5.2</span>
+  <span class="title" data-tauri-drag-region id="appTitle">邦德猫</span>
   <span class="stats" id="stats" data-tauri-drag-region></span>
   <div class="btns">
     <button onclick="openModal('paperdoll')">👤</button>
@@ -69,6 +69,17 @@ canvas { display:block; }
 
 <div id="modal"><div class="panel" id="modalContent"></div><div class="close-hint">ESC 关闭</div></div>
 
+<script>
+// Inject app version from Tauri at startup (avoid hardcoded version drift)
+(async () => {
+  try {
+    const v = await window.__TAURI__.app.getVersion();
+    document.title = "邦德猫 v" + v;
+    const el = document.getElementById("appTitle");
+    if (el) el.textContent = "邦德猫 v" + v;
+  } catch (e) { console.warn("version inject failed", e); }
+})();
+</script>
 <script>
 // ============ IMAGE ASSETS ============
 const IMG = {};
@@ -355,7 +366,17 @@ function pickMonsterType() {
 
 function spawnMonster() {
   if (monsters.length >= 4) return;
-  const typeIdx = pickMonsterType();
+  let typeIdx = pickMonsterType();
+  // 同屏只允许 1 只 boss; 若已存在 boss 且抽到 boss, 重抽; 仍是 boss 则降级为最高阶普通怪
+  const bossAlive = monsters.some(m => MONSTER_TYPES[m.type].isBoss);
+  if (bossAlive && MONSTER_TYPES[typeIdx].isBoss) {
+    typeIdx = pickMonsterType();
+    if (MONSTER_TYPES[typeIdx].isBoss) {
+      for (let i = MONSTER_TYPES.length - 1; i >= 0; i--) {
+        if (!MONSTER_TYPES[i].isBoss && state.level >= MONSTER_TYPES[i].minLv) { typeIdx = i; break; }
+      }
+    }
+  }
   const t = MONSTER_TYPES[typeIdx];
   const hpMult = 1 + (state.level - 1) * 0.3;
   const isElite = !t.isBoss && Math.random() < 0.1;

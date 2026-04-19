@@ -195,3 +195,7 @@
 - 备份原图后覆盖（备份已 rm 不入库）
 - bump version 0.5.2 → 0.5.3 (package.json + Cargo.toml + tauri.conf.json)
 - CI 触发 build.yml，等 macOS aarch64 DMG artifact
+
+## v0.5.4 — 2026-04-19
+- **修 boss 同屏多只**: spawnMonster 加判断, 若已存在 boss 且抽到 boss, 重抽一次仍是 boss 则降级为当前等级最高阶普通怪
+- **修版本号漂移**: 标题栏 + window.title 硬编码 v0.5.2 的问题, 改为启动时从 Tauri window.__TAURI__.app.getVersion() 动态注入, 再不会版本不同步
