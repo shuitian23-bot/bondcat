@@ -90,6 +90,9 @@ const IMG_SOURCES = {
   skull: 'assets/skull.png',
   goblin: 'assets/goblin.png',
   dragon: 'assets/dragon_boss.png',
+  skeletonKing: 'assets/skeleton_king.png',
+  shadowBlade: 'assets/shadow_blade.png',
+  elementalLich: 'assets/elemental_lich.png',
   chestN: 'assets/chest_normal.png',
   chestR: 'assets/chest_rare.png',
   chestE: 'assets/chest_epic.png',
@@ -108,7 +111,7 @@ for (const [k, src] of Object.entries(IMG_SOURCES)) {
   IMG[k] = im;
 }
 // Particle colors per monster type (since no more sprite colors)
-const MONSTER_PARTICLE_COLOR = { slime:'#44cc44', bat:'#9944cc', skull:'#e8e8e8', goblin:'#66aa44', dragon:'#cc2222' };
+const MONSTER_PARTICLE_COLOR = { slime:'#44cc44', bat:'#9944cc', skull:'#e8e8e8', goblin:'#66aa44', dragon:'#cc2222', skeletonKing:'#ffff88', shadowBlade:'#aa44ff', elementalLich:'#44aaff' };
 
 // ============ DRAW HELPER ============
 const canvas = document.getElementById('game');
@@ -344,6 +347,9 @@ const MONSTER_TYPES = [
   { name:'骷髅', img:'skull', size:44, hp:8, xpVal:7, goldMin:8, goldMax:20, minLv:4, isBoss:false },
   { name:'哥布林', img:'goblin', size:48, hp:16, xpVal:15, goldMin:20, goldMax:50, minLv:6, isBoss:false },
   { name:'赤龙王', img:'dragon', size:64, hp:120, xpVal:100, goldMin:250, goldMax:600, minLv:10, isBoss:true },
+  { name:'骸骨王', img:'skeletonKing', size:64, hp:240, xpVal:150, goldMin:400, goldMax:800, minLv:15, isBoss:true },
+  { name:'影刺客', img:'shadowBlade', size:60, hp:160, xpVal:180, goldMin:500, goldMax:1000, minLv:20, isBoss:true },
+  { name:'元素巫妖', img:'elementalLich', size:64, hp:320, xpVal:250, goldMin:700, goldMax:1400, minLv:25, isBoss:true },
 ];
 
 function pickMonsterType() {

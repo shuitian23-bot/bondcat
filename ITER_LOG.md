@@ -199,3 +199,12 @@
 ## v0.5.4 — 2026-04-19
 - **修 boss 同屏多只**: spawnMonster 加判断, 若已存在 boss 且抽到 boss, 重抽一次仍是 boss 则降级为当前等级最高阶普通怪
 - **修版本号漂移**: 标题栏 + window.title 硬编码 v0.5.2 的问题, 改为启动时从 Tauri window.__TAURI__.app.getVersion() 动态注入, 再不会版本不同步
+
+## v0.5.5 — 2026-04-19
+- **多 BOSS 上线 (合并原计划 iter 1+2)**: 新增 3 个 boss
+  - 骸骨王 skeletonKing (minLv 15, HP 240, 金币 400-800, xp 150)
+  - 影刺客 shadowBlade (minLv 20, HP 160, 金币 500-1000, xp 180)
+  - 元素巫妖 elementalLich (minLv 25, HP 320, 金币 700-1400, xp 250)
+- 素材流程: DashScope wanx2.1-t2i-turbo 生成 + Python flood fill (dark/light 自适应) + rembg (lich 蓝底用 u2net 模型)
+- IMG_SOURCES + MONSTER_TYPES + MONSTER_PARTICLE_COLOR 三处同步扩展
+- AI 差异化 / 章节系统 留待 v0.5.6 / v0.6.0
