@@ -187,3 +187,11 @@
 - 装备UI: 4槽横排+物品列表+装/升/卖按钮
 - 吸血词缀实时回血,金币词缀提升拾取
 - recomputeMaxHp() 动态计算加成
+
+## v0.5.3 — 2026-04-19
+- **修复 boss 黑底**: dragon_boss.png 原本是黑色实底（RGBA 但 alpha 全 1），其他怪物都是透明底
+- 修法: Python PIL 从四角 BFS flood fill，把连通的近黑像素 (R+G+B<60) alpha 设为 0
+- 105998 / 262144 像素被去掉（外围背景），dragon 主体 + 火焰保留
+- 备份原图后覆盖（备份已 rm 不入库）
+- bump version 0.5.2 → 0.5.3 (package.json + Cargo.toml + tauri.conf.json)
+- CI 触发 build.yml，等 macOS aarch64 DMG artifact
