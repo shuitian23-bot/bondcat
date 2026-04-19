@@ -1135,6 +1135,19 @@ function update(dt) {
   // spawn
   spawnTimer -= dt;
   if (spawnTimer <= 0) { spawnTimer = 4; spawnMonster(); }
+  // 每帧强制章节天气 (避免跨章残留)
+  {
+    const _chW = currentChapter().weather;
+    if (_chW && _chW !== 'clear' && weatherMode !== _chW) { weatherMode = _chW; weatherDrops.length = 0; }
+    else if (_chW === 'clear' && weatherMode !== 'clear' && !(weatherMode === 'rain' || weatherMode === 'snow')) { /* 随机天气保留 */ }
+  }
+  // 切章节时如果从 非clear 章切到 clear 章, 清 drops
+  if (state.__lastChapterName !== currentChapter().name) {
+    state.__lastChapterName = currentChapter().name;
+    const _chW2 = currentChapter().weather;
+    if (!_chW2 || _chW2 === 'clear') { weatherMode = 'clear'; weatherDrops.length = 0; }
+    else weatherMode = _chW2;
+  }
 
   // weather cycle
   weatherTimer -= dt;

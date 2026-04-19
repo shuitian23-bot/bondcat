@@ -339,3 +339,8 @@
 - attackAnim 0.3->0.5, attackArc 衰减 4->2.5 (挥砍时长翻倍)
 - 命中加 5 颗砍击粒子 (暴击橙色,普通白色)
 - 顶栏加下一章提示 →LvXX
+
+## v0.7.10 — 2026-04-20 (章节天气残留)
+- 雪原章 weather=snow, 切到熔岩仍下雪 (weatherTimer 30s 周期没到)
+- 每帧强制章节 weather + 切章时清 weatherDrops
+- 用 state.__lastChapterName 检测章节切换边界
