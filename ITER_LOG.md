@@ -295,3 +295,12 @@
   - 初始HP (1魂/级 +20)
 - 转生殿堂面板 (★ 按钮新加在顶栏)
 - buff 应用: playerAttack base + critChance + greedBuff + applyPrestigeStart()
+
+## v0.7.3 — 2026-04-19 (hotfix)
+- **修 TDZ bug** (node 静态测试发现)
+- 根因: recomputeMaxHp() 顶层启动时调用 -> currentClass() 访问 CLASSES (line 371 const, TDZ 内)
+- typeof CLASSES 在 TDZ 内也抛 ReferenceError (典型 const TDZ 坑)
+- 修法: currentClass + recomputeMaxHp 内部 try/catch 兜
+- recomputeMaxHp 同步扩展支持 outfit hpMult + prestige hpStart
+- node --check 语法 ok, 核心 15 test 全过 (defaultState/loadState/旧存档兼容)
+- 浏览器里 0.7.2 启动会崩, 0.7.3 修好

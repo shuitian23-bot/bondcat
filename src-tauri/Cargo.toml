@@ -1,6 +1,6 @@
 [package]
 name = "bondcat"
-version = "0.7.2"
+version = "0.7.3"
 description = "像素邦德小猫·敲敲打宝"
 authors = ["baiyu"]
 edition = "2021"

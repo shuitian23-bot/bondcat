@@ -178,7 +178,13 @@ function loadState() {
   catch(e) { return defaultState(); }
 }
 function recomputeMaxHp() {
-  const _cls = currentClass(); const base = Math.floor((100 + (state.level - 1) * 10 + state.skills.vitality * 20) * (_cls ? _cls.hpMult : 1));
+  // TDZ guard via try/catch: 顶层启动时 CLASSES/OUTFITS const 还在 TDZ (typeof 也抛错)
+  let _cls = null, _skin = null;
+  try { _cls = currentClass(); } catch (e) {}
+  try { _skin = OUTFITS[state.outfit]; } catch (e) {}
+  const outfitHpMult = (_skin && _skin.bonus && _skin.bonus.key === 'hpMult') ? _skin.bonus.value : 1.0;
+  const prestigeHp = (state.prestigeBuffs && state.prestigeBuffs.hpStart) ? state.prestigeBuffs.hpStart * 20 : 0;
+  const base = Math.floor((100 + (state.level - 1) * 10 + state.skills.vitality * 20 + prestigeHp) * (_cls ? _cls.hpMult : 1) * outfitHpMult);
   const equipHp = sumEquipStat(itemTotalHp);
   state.catMaxHp = Math.floor(base + equipHp);
   if (state.catHp > state.catMaxHp) state.catHp = state.catMaxHp;
@@ -470,7 +476,7 @@ const CLASSES = {
   rogue:   { id:'rogue',   name:'刺客', icon:'☠', desc:'+30% 暴击率', color:'#bb44ff', hpMult:1.0, critDmgMult:1.0, critRateAdd:0.30 },
 };
 function currentClass() {
-  return CLASSES[state.classId] || null;
+  try { return CLASSES[state.classId] || null; } catch (e) { return null; }
 }
 
 function pickMonsterType() {
