@@ -504,11 +504,11 @@ function pickMonsterType() {
   for (let i = 0; i < MONSTER_TYPES.length; i++) {
     const t = MONSTER_TYPES[i];
     if (state.level < t.minLv) continue;
-    // Boss has low base weight
-    if (t.isBoss) { available.push({ i, w: 1 }); continue; }
-    // Recent tiers weighted higher
+    // Boss 概率降低 (原 w=1 Lv30+ 达 50%, 改 w=0.5 稀释)
+    if (t.isBoss) { available.push({ i, w: 0.5 }); continue; }
+    // 普通怪权重下限 3 (原 1), 衰减慢 (10 - tierAge*0.5)
     const tierAge = state.level - t.minLv;
-    const w = Math.max(1, 10 - tierAge);
+    const w = Math.max(3, 10 - tierAge * 0.5);
     available.push({ i, w });
   }
   const total = available.reduce((s, x) => s + x.w, 0);

@@ -328,3 +328,8 @@
 - v0.7.5 patch 当时 heredoc 失败没应用到 index.html, 只 bump 了版本号
 - 补回 mergeAll() 函数 + 背包 UI 简化为一键全合大按钮
 - 全回归测试: 65 PASS / 1 FAIL (Lv30 boss 刷率过高,留 v0.7.8)
+
+## v0.7.8 — 2026-04-19 (balance)
+- boss 权重 1 -> 0.5 (Lv30+ 原本 4 boss × 1 = 50% 满屏 boss)
+- 普通怪权重下限 1 -> 3 (tierAge 衰减太快 Lv30 所有普通怪都到 w=1)
+- 预期 Lv30 boss 刷率 50% -> ~15%
