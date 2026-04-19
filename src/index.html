@@ -424,7 +424,7 @@ function spawnMonster() {
   monsters.push({
     type: typeIdx, x: 360 + Math.random() * 100, y: 136 - t.size - 8,
     hp: finalHp, maxHp: finalHp, elite: isElite,
-    speed: (t.img==='skeletonKing'?30: t.img==='shadowBlade'?22: t.img==='elementalLich'?8: t.isBoss?12: (25 + Math.random() * 10)), flash: 0, atkTimer: 0, dodgeTimer: 0,
+    speed: (t.img==='skeletonKing'?30: t.img==='shadowBlade'?22: t.img==='elementalLich'?8: t.isBoss?12: (25 + Math.random() * 10)), flash: 0, atkTimer: 0, dodgeTimer: 0, frozenTimer: 0,
     chapterBoss: isChapterBoss,
   });
   if (t.isBoss) {
@@ -454,7 +454,9 @@ function playerAttack() {
   const wepDmg = sumEquipStat(itemTotalDmg); const fistDmg = wepDmg > 0 ? 0 : 1; const base = (wepDmg + fistDmg + Math.floor(state.level * 0.5)) * atkBuff;
   const critFromGear = sumEquipStat(it => (it ? it.affixes.filter(a=>a.key==='critBonus').reduce((s,a)=>s+a.value*0.01,0) : 0));
   const _cls = currentClass();
-  const critChance = 0.05 + (state.skills.luck * 0.02) + critFromGear + (_cls ? _cls.critRateAdd : 0);
+  let critChance = 0.05 + (state.skills.luck * 0.02) + critFromGear + (_cls ? _cls.critRateAdd : 0);
+  // 刺客被动: 连击 >=5 时暴击率 ×2
+  if (_cls && _cls.id === 'rogue' && comboCount >= 5) critChance *= 2;
   const isCrit = Math.random() < critChance;
   const critDmgMult = _cls ? (2 * _cls.critDmgMult) : 2;
   const dmg = Math.ceil(base * mult * (isCrit ? critDmgMult : 1));
@@ -470,6 +472,12 @@ function playerAttack() {
     target.hp -= dmg;
     target.flash = 0.15;
     hit = true;
+    // 法师被动: 暴击时冰冻减速目标 50% 持续 1.5s
+    const _mageC = currentClass();
+    if (_mageC && _mageC.id === 'mage' && isCrit) {
+      target.frozenTimer = 1.5;
+      floatTexts.push({ x: target.x + 10, y: target.y - 18, text: 'FROZEN', color: '#88ddff', life: 0.7 });
+    }
     const hitColor = isCrit ? '#ff8040' : (mult >= 2 ? '#ffff40' : (mult >= 1.5 ? '#80ffff' : '#ffffff'));
     floatTexts.push({ x: target.x + 10, y: target.y - 5, text: (isCrit ? 'CRIT -' : '-') + dmg, color: hitColor, life: 0.8 });
     if (isCrit) {
@@ -562,6 +570,13 @@ function killMonster(m) {
 
 function monsterAttack(m) {
   if (catDead > 0) return;
+  // 战士被动: 20% 概率格挡免伤
+  const _passC = currentClass();
+  if (_passC && _passC.id === 'warrior' && Math.random() < 0.20) {
+    catFlash = 0.15;
+    floatTexts.push({ x: 80, y: 30, text: 'BLOCK!', color: '#cc6644', life: 0.8 });
+    return;
+  }
   const t = MONSTER_TYPES[m.type];
   let dmg;
   if (t.img === 'elementalLich') dmg = 16 + Math.floor(state.level * 1.0);
@@ -853,12 +868,14 @@ function update(dt) {
   for (const m of monsters) {
     if (m.hp <= 0) continue;
     if (m.flash > 0) m.flash -= dt;
+    if (m.frozenTimer > 0) m.frozenTimer -= dt;
     const _mt = MONSTER_TYPES[m.type];
     const isRanged = _mt.img === 'elementalLich';
     const atkRange = isRanged ? 350 : 130;
     const atkCd = isRanged ? 3 : (_mt.img === 'shadowBlade' ? 1.2 : 2);
+    const speedMult = (m.frozenTimer > 0) ? 0.5 : 1.0;
     if (m.x > atkRange) {
-      m.x -= m.speed * dt;
+      m.x -= m.speed * speedMult * dt;
     } else {
       m.atkTimer += dt;
       if (m.atkTimer >= atkCd) { m.atkTimer = 0; monsterAttack(m); }

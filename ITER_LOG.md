@@ -242,3 +242,10 @@
 - 选完弹选择 X 浮字提示
 - 旧存档兼容 (loadState 默认 classId=null 触发首次选择)
 - ⚠️ 中途 Python 写文件失败把 index.html 写空, git checkout 恢复后重跑 patch
+
+## v0.6.6 — 2026-04-19
+- **职业专属被动**
+- 战士: 受击时 20% 概率格挡 (BLOCK 浮字, 完全免伤)
+- 法师: 自身暴击时给目标 frozenTimer=1.5s, 减速 ×0.5 (FROZEN 浮字, 蓝色)
+- 刺客: comboCount >= 5 时暴击率 ×2
+- monster 加 frozenTimer 字段, update loop 应用 speedMult
