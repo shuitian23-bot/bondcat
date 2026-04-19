@@ -216,3 +216,11 @@
   - 元素巫妖 elementalLich: speed 8 (最慢), **远程攻击 x<=350 就能打猫**, atkCd 3s, 伤害最高 (16+lv*1.0)
 - 其他怪保持原 atkRange 130 / atkCd 2 不变
 - monster 实体加 dodgeTimer 字段备用
+
+## v0.6.0 — 2026-04-19
+- **章节系统上线**
+- 5 章主题循环 (每 10 级 1 章): 翠绿草原 / 炽热沙漠 / 凛冬雪原 / 熔岩地狱 / 暗影秘境
+- currentChapter() 由 state.level 动态算
+- 渲染: 天空 fillRect overlay + 地面 multiply 着色 (草原无 overlay 保持原色)
+- 顶栏 stats 加 [章节名] 前缀
+- 章节 boss 必现机制留待 v0.6.1

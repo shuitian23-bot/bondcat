@@ -352,6 +352,19 @@ const MONSTER_TYPES = [
   { name:'元素巫妖', img:'elementalLich', size:64, hp:320, xpVal:250, goldMin:700, goldMax:1400, minLv:25, isBoss:true },
 ];
 
+// 章节主题 (每 10 级 1 章, 循环使用)
+const CHAPTERS = [
+  { name: '翠绿草原', skyTint: null, groundTint: null },
+  { name: '炽热沙漠', skyTint: 'rgba(255,180,60,0.18)', groundTint: 'rgba(220,160,80,0.35)' },
+  { name: '凛冬雪原', skyTint: 'rgba(180,220,255,0.22)', groundTint: 'rgba(230,240,255,0.45)' },
+  { name: '熔岩地狱', skyTint: 'rgba(255,60,30,0.20)', groundTint: 'rgba(180,50,30,0.40)' },
+  { name: '暗影秘境', skyTint: 'rgba(90,40,120,0.25)', groundTint: 'rgba(60,40,80,0.50)' },
+];
+function currentChapter() {
+  const idx = Math.max(0, Math.floor((state.level - 1) / 10)) % CHAPTERS.length;
+  return CHAPTERS[idx];
+}
+
 function pickMonsterType() {
   const available = [];
   for (let i = 0; i < MONSTER_TYPES.length; i++) {
@@ -841,6 +854,17 @@ function render(time) {
   // clear to transparent
   ctx.clearRect(0, 0, 500, 136);
 
+  // 章节主题天空底色
+  {
+    const _ch = currentChapter();
+    if (_ch.skyTint) {
+      ctx.save();
+      ctx.fillStyle = _ch.skyTint;
+      ctx.fillRect(0, 0, 500, 120);
+      ctx.restore();
+    }
+  }
+
   // day/night factor (0=noon, 1=midnight)
   const nowHr = new Date().getHours() + new Date().getMinutes() / 60;
   // 6-18 is day, peak at 12; 18-6 is night, peak at 0
@@ -915,6 +939,17 @@ function render(time) {
   } else {
     ctx.fillStyle = '#1a5c1a';
     ctx.fillRect(0, 128, 500, 8);
+  }
+  // 章节主题地面着色
+  {
+    const _ch = currentChapter();
+    if (_ch.groundTint) {
+      ctx.save();
+      ctx.globalCompositeOperation = 'multiply';
+      ctx.fillStyle = _ch.groundTint;
+      ctx.fillRect(0, 120, 500, 16);
+      ctx.restore();
+    }
   }
 
   // chest drops
@@ -1042,7 +1077,7 @@ function gameLoop(now) {
     window._achTick++;
     if (window._achTick % 60 === 0) checkAchievements();
     const xpNeeded = state.level * 15; const xpPct = Math.min(100, (state.xp / xpNeeded) * 100); document.getElementById('xpbar').style.width = xpPct + '%';
-    document.getElementById('stats').textContent = `💰${state.gold} ⚔️${state.kills} Lv${state.level}${comboStr}`;
+    document.getElementById('stats').textContent = `[${currentChapter().name}] 💰${state.gold} ⚔️${state.kills} Lv${state.level}${comboStr}`;
   } catch(e) { console.error(e); }
   requestAnimationFrame(gameLoop);
 }
