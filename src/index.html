@@ -569,8 +569,8 @@ function comboMultiplier() {
 
 function playerAttack() {
   if (catDead > 0) return;
-  attackAnim = 0.3;
-  attackArc = 1.0;
+  attackAnim = 0.5;
+  attackArc = 1.2;
   const mult = comboMultiplier();
   const atkBuff = 1 + (state.skills.attack * 0.1);
   const wepDmg = sumEquipStat(itemTotalDmg); const fistDmg = wepDmg > 0 ? 0 : 1; const prestigeAtk = state.prestigeBuffs.atkStart || 0; const base = (wepDmg + fistDmg + Math.floor(state.level * 0.5) + totalPetAtkBonus() + prestigeAtk) * atkBuff;
@@ -598,6 +598,21 @@ function playerAttack() {
     target.hp -= dmg;
     target.flash = 0.15;
     hit = true;
+    // 砍击粒子 (5 颗白色闪光)
+    for (let _p = 0; _p < 5; _p++) {
+      particles.push({
+        x: target.x + target.size/2 + (Math.random()-0.5)*20,
+        y: target.y + target.size/2 + (Math.random()-0.5)*20,
+        vx: (Math.random()-0.5)*80,
+        vy: -Math.random()*60,
+        color: isCrit ? '#ffaa44' : '#ffffff',
+        life: 0.35,
+        size: 2,
+        glow: false,
+        gravity: 200,
+        drag: 0.92,
+      });
+    }
     // 法师被动: 暴击时冰冻减速目标 50% 持续 1.5s
     const _mageC = currentClass();
     if (_mageC && _mageC.id === 'mage' && isCrit) {
@@ -1158,7 +1173,7 @@ function update(dt) {
 
   // attack anim
   if (attackAnim > 0) attackAnim -= dt;
-  if (attackArc > 0) attackArc -= dt * 4;
+  if (attackArc > 0) attackArc -= dt * 2.5;
 
   // combo timer (resets combo if no hit in 2s)
   if (comboTimer > 0) {
@@ -1366,7 +1381,20 @@ function render(time) {
   if (catVisible) {
     const _skin = OUTFITS[state.outfit] || OUTFITS[0];
     const _skinImg = IMG[_skin.img] || IMG.cat;
-    drawImg(_skinImg, catX, catY, CAT_SIZE, CAT_SIZE, catFlash > 0);
+    // 水平翻转让猫朝右 (怪来方向)
+    if (_skinImg && _skinImg.complete) {
+      ctx.save();
+      ctx.translate(catX + CAT_SIZE, catY);
+      ctx.scale(-1, 1);
+      ctx.drawImage(_skinImg, 0, 0, CAT_SIZE, CAT_SIZE);
+      if (catFlash > 0) {
+        ctx.globalCompositeOperation = 'source-atop';
+        ctx.globalAlpha = 0.7;
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(0, 0, CAT_SIZE, CAT_SIZE);
+      }
+      ctx.restore();
+    }
     // 宠物: 猫后方 一字排开 22x22
     for (let i = 0; i < Math.min(state.pets.length, 5); i++) {
       const pt = PET_TYPES.find(x => x.id === state.pets[i].typeId);
@@ -1375,7 +1403,11 @@ function render(time) {
       if (!petImg) continue;
       const px = catX - 26 - i * 24;
       const py = catBaseY + CAT_SIZE - 24 + Math.sin(time * 0.006 + i) * 1.5;
-      drawImg(petImg, px, py, 22, 22, false);
+      ctx.save();
+      ctx.translate(px + 22, py);
+      ctx.scale(-1, 1);
+      ctx.drawImage(petImg, 0, 0, 22, 22);
+      ctx.restore();
     }
     // outfit tint overlay
     if (state.outfit !== 0) {
@@ -1466,7 +1498,9 @@ function gameLoop(now) {
     window._achTick++;
     if (window._achTick % 60 === 0) checkAchievements();
     const xpNeeded = state.level * 15; const xpPct = Math.min(100, (state.xp / xpNeeded) * 100); document.getElementById('xpbar').style.width = xpPct + '%';
-    document.getElementById('stats').textContent = `[${currentChapter().name}] 💰${state.gold} ⚔️${state.kills} Lv${state.level}${comboStr}`;
+    const _nextCh = Math.floor(state.level / 10) * 10 + 1;
+    const _chHint = (state.level < _nextCh - 1) ? ` →Lv${_nextCh}` : '';
+    document.getElementById('stats').textContent = `[${currentChapter().name}${_chHint}] 💰${state.gold} ⚔️${state.kills} Lv${state.level}${comboStr}`;
   } catch(e) { console.error(e); }
   requestAnimationFrame(gameLoop);
 }
