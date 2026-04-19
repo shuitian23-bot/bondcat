@@ -311,3 +311,8 @@
 - **compositeOperation multiply -> source-over**: multiply 被日光灰化, source-over 颜色准
 - **元素巫妖站桩太明显**: atkRange 350 -> 220, 让它走近一些再打
 - **boss 站桩加 sin 浮动**: y 轴上下 2px 飘动, 看起来有呼吸感
+
+## v0.7.5 — 2026-04-19 (UX)
+- 一键合成: 背包顶部加大按钮
+- mergeAll() 多轮合成直到无可合
+- 移除细节列表, 小 modal 不堆爆
