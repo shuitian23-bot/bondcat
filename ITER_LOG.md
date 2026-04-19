@@ -258,3 +258,11 @@
 - 渲染: 猫贴图按 state.outfit 查 OUTFITS[state.outfit].img
 - 商店 UI 留待 v0.6.8
 - defaultState outfitOwned 扩成 4 项; loadState 兼容旧存档
+
+## v0.6.8 — 2026-04-19
+- **皮肤商店 UI + 皮肤加成生效**
+- 商店面板重做: 左边 28×28 皮肤小图预览 + 品质色 border + 加成描述
+- 金币不足时按钮变灰
+- applyOutfitBonus(): 切换皮肤后重算 catMaxHp (含职业+技能+皮肤 hpMult)
+- 暴击率/暴击伤害叠加皮肤 bonus (catRogue +3% 暴击率 / catMage +5% 暴击伤害 / catKnight +5% HP)
+- 购买成功自动穿上

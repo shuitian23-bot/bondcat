@@ -462,11 +462,15 @@ function playerAttack() {
   const wepDmg = sumEquipStat(itemTotalDmg); const fistDmg = wepDmg > 0 ? 0 : 1; const base = (wepDmg + fistDmg + Math.floor(state.level * 0.5)) * atkBuff;
   const critFromGear = sumEquipStat(it => (it ? it.affixes.filter(a=>a.key==='critBonus').reduce((s,a)=>s+a.value*0.01,0) : 0));
   const _cls = currentClass();
-  let critChance = 0.05 + (state.skills.luck * 0.02) + critFromGear + (_cls ? _cls.critRateAdd : 0);
+  const _skinBonusRate = OUTFITS[state.outfit] && OUTFITS[state.outfit].bonus;
+  const outfitCritRate = (_skinBonusRate && _skinBonusRate.key === 'critRateAdd') ? _skinBonusRate.value : 0;
+  let critChance = 0.05 + (state.skills.luck * 0.02) + critFromGear + (_cls ? _cls.critRateAdd : 0) + outfitCritRate;
   // 刺客被动: 连击 >=5 时暴击率 ×2
   if (_cls && _cls.id === 'rogue' && comboCount >= 5) critChance *= 2;
   const isCrit = Math.random() < critChance;
-  const critDmgMult = _cls ? (2 * _cls.critDmgMult) : 2;
+  const _skinBonus = OUTFITS[state.outfit] && OUTFITS[state.outfit].bonus;
+  const outfitCritDmg = (_skinBonus && _skinBonus.key === 'critDmgMult') ? _skinBonus.value : 1.0;
+  const critDmgMult = (_cls ? (2 * _cls.critDmgMult) : 2) * outfitCritDmg;
   const dmg = Math.ceil(base * mult * (isCrit ? critDmgMult : 1));
   let hit = false, target = null;
   for (const m of monsters) { if (m.x < 200) { target = m; break; } }
@@ -708,18 +712,26 @@ function openModal(type) {
     }
     content.innerHTML = html;
   } else if (type === 'shop') {
-    let html = '<h3>🛒 商城</h3>';
-    html += '<div style="margin-bottom:6px;color:#f0a040;font-size:10px">💰 ' + state.gold + ' 金币</div>';
-    html += '<div style="font-size:10px;color:#888;margin:4px 0">🎨 装扮</div>';
+    let html = '<h3>🛒 商城 (💰 ' + state.gold + ')</h3>';
+    html += '<div style="font-size:10px;color:#aaa;margin:2px 0">🎨 猫咪装扮 — 解锁后点预览图切换</div>';
     for (let i = 0; i < OUTFITS.length; i++) {
       const o = OUTFITS[i];
       const owned = state.outfitOwned[i];
       const equipped = state.outfit === i;
+      const bonusTxt = o.bonus ? o.bonus.desc : '（无加成）';
       let btn = '';
       if (equipped) btn = '<button class="equipped">穿着中</button>';
       else if (owned) btn = `<button onclick="equipOutfit(${i})">穿上</button>`;
-      else btn = `<button onclick="buyOutfit(${i})">${o.cost}💰</button>`;
-      html += `<div class="row"><span>${o.name}</span>${btn}</div>`;
+      else {
+        const affordable = state.gold >= o.cost;
+        btn = `<button onclick="buyOutfit(${i})" ${affordable?'':'style="background:#555;color:#999"'}>${o.cost}💰</button>`;
+      }
+      const imgSrc = 'assets/' + (o.img === 'cat' ? 'cat.png' : (o.img === 'catKnight' ? 'cat_knight.png' : (o.img === 'catMage' ? 'cat_mage.png' : 'cat_rogue.png')));
+      html += `<div class="row" style="border-left:3px solid ${o.color};padding-left:6px">
+        <span style="display:flex;align-items:center;gap:6px">
+          <img src="${imgSrc}" style="width:28px;height:28px;image-rendering:pixelated"/>
+          <span><b style="color:${o.color}">${o.name}</b><br><span style="font-size:9px;color:#aaa">${bonusTxt}</span></span>
+        </span>${btn}</div>`;
     }
     content.innerHTML = html;
   }
@@ -807,12 +819,28 @@ function openAllChests() {
 }
 
 
+function applyOutfitBonus() {
+  // recompute catMaxHp (class + skills + outfit-hp-mult)
+  const _cls = currentClass();
+  const _skin = OUTFITS[state.outfit];
+  const outfitHpMult = (_skin && _skin.bonus && _skin.bonus.key === 'hpMult') ? _skin.bonus.value : 1.0;
+  const newMax = Math.floor((100 + (state.level - 1) * 10 + state.skills.vitality * 20) * (_cls ? _cls.hpMult : 1) * outfitHpMult);
+  state.catMaxHp = newMax;
+  if (state.catHp > newMax) state.catHp = newMax;
+}
 function buyOutfit(i) {
   if (state.gold >= OUTFITS[i].cost && !state.outfitOwned[i]) {
-    state.gold -= OUTFITS[i].cost; state.outfitOwned[i] = true; state.outfit = i; saveState(); openModal('shop');
+    state.gold -= OUTFITS[i].cost; state.outfitOwned[i] = true; state.outfit = i;
+    applyOutfitBonus();
+    saveState(); openModal('shop');
   }
 }
-function equipOutfit(i) { state.outfit = i; saveState(); openModal('shop'); }
+function equipOutfit(i) {
+  state.outfit = i;
+  applyOutfitBonus();
+  saveState();
+  openModal('shop');
+}
 
 function resetData() { state = defaultState(); monsters = []; particles = []; floatTexts = []; chestDrops = []; weatherDrops = []; comboCount = 0; comboTimer = 0; lastComboMilestone = 0; saveState(); }
 
