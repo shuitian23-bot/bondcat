@@ -85,6 +85,9 @@ canvas { display:block; }
 const IMG = {};
 const IMG_SOURCES = {
   cat: 'assets/cat.png',
+  catKnight: 'assets/cat_knight.png',
+  catMage: 'assets/cat_mage.png',
+  catRogue: 'assets/cat_rogue.png',
   slime: 'assets/slime.png',
   bat: 'assets/bat.png',
   skull: 'assets/skull.png',
@@ -143,7 +146,7 @@ function defaultState() {
     chapterBossPending: 0,
     gold: 0, kills: 0, level: 1, xp: 0,
     catHp: 100, catMaxHp: 100,
-    outfit: 0, outfitOwned: [true, false, false],
+    outfit: 0, outfitOwned: [true, false, false, false],
     chests: [0, 0, 0],
     equipment: {
       head: null, body: null, accessory: null,
@@ -158,7 +161,7 @@ function defaultState() {
   };
 }
 function loadState() {
-  try { const s = JSON.parse(localStorage.getItem(SAVE_KEY)); if (!s || s.gold === undefined) return defaultState(); if (!s.skills) s.skills = { attack:0, vitality:0, greed:0, luck:0 }; if (s.skills.luck === undefined) s.skills.luck = 0; if (!s.achievements) s.achievements = []; if (s.bossKills === undefined) s.bossKills = 0; if (s.maxCombo === undefined) s.maxCombo = 0; if (s.chapterBossPending === undefined) s.chapterBossPending = 0; if (s.classId === undefined) s.classId = null;
+  try { const s = JSON.parse(localStorage.getItem(SAVE_KEY)); if (!s || s.gold === undefined) return defaultState(); if (!s.skills) s.skills = { attack:0, vitality:0, greed:0, luck:0 }; if (s.skills.luck === undefined) s.skills.luck = 0; if (!s.achievements) s.achievements = []; if (s.bossKills === undefined) s.bossKills = 0; if (s.maxCombo === undefined) s.maxCombo = 0; if (s.chapterBossPending === undefined) s.chapterBossPending = 0; if (s.classId === undefined) s.classId = null; if (!s.outfitOwned || s.outfitOwned.length < 4) s.outfitOwned = [true, s.outfitOwned && s.outfitOwned[1] || false, s.outfitOwned && s.outfitOwned[2] || false, false];
     if (!s.equipment) s.equipment = { head: null, body: null, weapon: null, accessory: null };
     if (!s.inventory) s.inventory = [];
     if (!s.nextItemId) s.nextItemId = 1;
@@ -318,7 +321,12 @@ function itemStatSummary(it) {
   return parts.join(' ');
 }
 // Replace old WEAPONS/OUTFITS (kept minimal for outfit color system)
-const OUTFITS = [{name:'普通',cost:0},{name:'骑士',cost:1000},{name:'魔法',cost:3000}];
+const OUTFITS = [
+  { name:'普通', cost:0,    img:'cat',       color:'#f0a040', bonus:null },
+  { name:'骑士', cost:1000, img:'catKnight', color:'#cccccc', bonus:{key:'hpMult', value:1.05, desc:'+5% HP'} },
+  { name:'法师', cost:3000, img:'catMage',   color:'#4488dd', bonus:{key:'critDmgMult', value:1.05, desc:'+5% 暴击伤害'} },
+  { name:'刺客', cost:3000, img:'catRogue',  color:'#bb44ff', bonus:{key:'critRateAdd', value:0.03, desc:'+3% 暴击率'} },
+];
 
 // ============ ENTITIES ============
 let monsters = [];
@@ -1056,7 +1064,9 @@ function render(time) {
   if (attackAnim > 0) catY -= 2;
   const catVisible = catDead > 0 ? (Math.floor(catDead * 6) % 2 === 0) : true;
   if (catVisible) {
-    drawImg(IMG.cat, catX, catY, CAT_SIZE, CAT_SIZE, catFlash > 0);
+    const _skin = OUTFITS[state.outfit] || OUTFITS[0];
+    const _skinImg = IMG[_skin.img] || IMG.cat;
+    drawImg(_skinImg, catX, catY, CAT_SIZE, CAT_SIZE, catFlash > 0);
     // outfit tint overlay
     if (state.outfit !== 0) {
       ctx.save();

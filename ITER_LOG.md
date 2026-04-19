@@ -249,3 +249,12 @@
 - 法师: 自身暴击时给目标 frozenTimer=1.5s, 减速 ×0.5 (FROZEN 浮字, 蓝色)
 - 刺客: comboCount >= 5 时暴击率 ×2
 - monster 加 frozenTimer 字段, update loop 应用 speedMult
+
+## v0.6.7 — 2026-04-19
+- **皮肤系统 (渲染接入)**
+- 素材: cat_knight / cat_mage / cat_rogue 三张 DashScope 生成, flood fill + rembg 兜底抠背景
+- IMG_SOURCES 加 catKnight/catMage/catRogue 三 key
+- OUTFITS 数组重构: 每项含 name/cost/img/color/bonus
+- 渲染: 猫贴图按 state.outfit 查 OUTFITS[state.outfit].img
+- 商店 UI 留待 v0.6.8
+- defaultState outfitOwned 扩成 4 项; loadState 兼容旧存档
