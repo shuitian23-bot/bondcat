@@ -208,3 +208,11 @@
 - 素材流程: DashScope wanx2.1-t2i-turbo 生成 + Python flood fill (dark/light 自适应) + rembg (lich 蓝底用 u2net 模型)
 - IMG_SOURCES + MONSTER_TYPES + MONSTER_PARTICLE_COLOR 三处同步扩展
 - AI 差异化 / 章节系统 留待 v0.5.6 / v0.6.0
+
+## v0.5.6 — 2026-04-19
+- **BOSS AI 差异化**
+  - 骸骨王 skeletonKing: speed 30 (最快), atkCd 2s, 伤害中等 (8+lv*0.7)
+  - 影刺客 shadowBlade: speed 22, **30% 闪避** 玩家攻击 (MISS 浮字), atkCd 1.2s (最快), 伤害较低 (6+lv*0.6)
+  - 元素巫妖 elementalLich: speed 8 (最慢), **远程攻击 x<=350 就能打猫**, atkCd 3s, 伤害最高 (16+lv*1.0)
+- 其他怪保持原 atkRange 130 / atkCd 2 不变
+- monster 实体加 dodgeTimer 字段备用

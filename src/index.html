@@ -391,7 +391,7 @@ function spawnMonster() {
   monsters.push({
     type: typeIdx, x: 360 + Math.random() * 100, y: 136 - t.size - 8,
     hp: finalHp, maxHp: finalHp, elite: isElite,
-    speed: t.isBoss ? 12 : (25 + Math.random() * 10), flash: 0, atkTimer: 0,
+    speed: (t.img==='skeletonKing'?30: t.img==='shadowBlade'?22: t.img==='elementalLich'?8: t.isBoss?12: (25 + Math.random() * 10)), flash: 0, atkTimer: 0, dodgeTimer: 0,
   });
   if (t.isBoss) {
     floatTexts.push({ x: 250, y: 30, text: '⚠ BOSS 来袭!', color: '#ff4040', life: 2.0 });
@@ -424,6 +424,11 @@ function playerAttack() {
   for (const m of monsters) { if (m.x < 200) { target = m; break; } }
   if (!target) for (const m of monsters) { if (m.x < 300) { target = m; break; } }
   if (target) {
+    const _tt = MONSTER_TYPES[target.type];
+    if (_tt.img === 'shadowBlade' && Math.random() < 0.30) {
+      floatTexts.push({ x: target.x + 10, y: target.y - 5, text: 'MISS', color: '#888888', life: 0.7 });
+      return;
+    }
     target.hp -= dmg;
     target.flash = 0.15;
     hit = true;
@@ -512,7 +517,12 @@ function killMonster(m) {
 
 function monsterAttack(m) {
   if (catDead > 0) return;
-  const t = MONSTER_TYPES[m.type]; const dmg = t.isBoss ? (10 + Math.floor(state.level * 0.8)) : (3 + m.type * 2 + Math.floor(state.level * 0.5));
+  const t = MONSTER_TYPES[m.type];
+  let dmg;
+  if (t.img === 'elementalLich') dmg = 16 + Math.floor(state.level * 1.0);
+  else if (t.img === 'skeletonKing') dmg = 8 + Math.floor(state.level * 0.7);
+  else if (t.img === 'shadowBlade') dmg = 6 + Math.floor(state.level * 0.6);
+  else dmg = t.isBoss ? (10 + Math.floor(state.level * 0.8)) : (3 + m.type * 2 + Math.floor(state.level * 0.5));
   state.catHp -= dmg;
   catFlash = 0.2;
   floatTexts.push({ x: 80, y: 40, text: '-' + dmg, color: '#ff4444', life: 0.8 });
@@ -778,11 +788,15 @@ function update(dt) {
   for (const m of monsters) {
     if (m.hp <= 0) continue;
     if (m.flash > 0) m.flash -= dt;
-    if (m.x > 130) {
+    const _mt = MONSTER_TYPES[m.type];
+    const isRanged = _mt.img === 'elementalLich';
+    const atkRange = isRanged ? 350 : 130;
+    const atkCd = isRanged ? 3 : (_mt.img === 'shadowBlade' ? 1.2 : 2);
+    if (m.x > atkRange) {
       m.x -= m.speed * dt;
     } else {
       m.atkTimer += dt;
-      if (m.atkTimer >= 2) { m.atkTimer = 0; monsterAttack(m); }
+      if (m.atkTimer >= atkCd) { m.atkTimer = 0; monsterAttack(m); }
     }
   }
   monsters = monsters.filter(m => m.hp > 0);
