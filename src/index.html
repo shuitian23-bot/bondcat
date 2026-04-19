@@ -139,6 +139,7 @@ recomputeMaxHp();
 
 function defaultState() {
   return {
+    classId: null,
     chapterBossPending: 0,
     gold: 0, kills: 0, level: 1, xp: 0,
     catHp: 100, catMaxHp: 100,
@@ -157,7 +158,7 @@ function defaultState() {
   };
 }
 function loadState() {
-  try { const s = JSON.parse(localStorage.getItem(SAVE_KEY)); if (!s || s.gold === undefined) return defaultState(); if (!s.skills) s.skills = { attack:0, vitality:0, greed:0, luck:0 }; if (s.skills.luck === undefined) s.skills.luck = 0; if (!s.achievements) s.achievements = []; if (s.bossKills === undefined) s.bossKills = 0; if (s.maxCombo === undefined) s.maxCombo = 0; if (s.chapterBossPending === undefined) s.chapterBossPending = 0;
+  try { const s = JSON.parse(localStorage.getItem(SAVE_KEY)); if (!s || s.gold === undefined) return defaultState(); if (!s.skills) s.skills = { attack:0, vitality:0, greed:0, luck:0 }; if (s.skills.luck === undefined) s.skills.luck = 0; if (!s.achievements) s.achievements = []; if (s.bossKills === undefined) s.bossKills = 0; if (s.maxCombo === undefined) s.maxCombo = 0; if (s.chapterBossPending === undefined) s.chapterBossPending = 0; if (s.classId === undefined) s.classId = null;
     if (!s.equipment) s.equipment = { head: null, body: null, weapon: null, accessory: null };
     if (!s.inventory) s.inventory = [];
     if (!s.nextItemId) s.nextItemId = 1;
@@ -168,7 +169,7 @@ function loadState() {
   catch(e) { return defaultState(); }
 }
 function recomputeMaxHp() {
-  const base = 100 + (state.level - 1) * 10 + state.skills.vitality * 20;
+  const _cls = currentClass(); const base = Math.floor((100 + (state.level - 1) * 10 + state.skills.vitality * 20) * (_cls ? _cls.hpMult : 1));
   const equipHp = sumEquipStat(itemTotalHp);
   state.catMaxHp = Math.floor(base + equipHp);
   if (state.catHp > state.catMaxHp) state.catHp = state.catMaxHp;
@@ -366,6 +367,16 @@ function currentChapter() {
   return CHAPTERS[idx];
 }
 
+// 职业系统
+const CLASSES = {
+  warrior: { id:'warrior', name:'战士', icon:'⚔', desc:'+20% 最大HP', color:'#cc6644', hpMult:1.20, critDmgMult:1.0, critRateAdd:0 },
+  mage:    { id:'mage',    name:'法师', icon:'✦', desc:'+20% 暴击伤害', color:'#4488dd', hpMult:1.0, critDmgMult:1.20, critRateAdd:0 },
+  rogue:   { id:'rogue',   name:'刺客', icon:'☠', desc:'+30% 暴击率', color:'#bb44ff', hpMult:1.0, critDmgMult:1.0, critRateAdd:0.30 },
+};
+function currentClass() {
+  return CLASSES[state.classId] || null;
+}
+
 function pickMonsterType() {
   const available = [];
   for (let i = 0; i < MONSTER_TYPES.length; i++) {
@@ -442,9 +453,11 @@ function playerAttack() {
   const atkBuff = 1 + (state.skills.attack * 0.1);
   const wepDmg = sumEquipStat(itemTotalDmg); const fistDmg = wepDmg > 0 ? 0 : 1; const base = (wepDmg + fistDmg + Math.floor(state.level * 0.5)) * atkBuff;
   const critFromGear = sumEquipStat(it => (it ? it.affixes.filter(a=>a.key==='critBonus').reduce((s,a)=>s+a.value*0.01,0) : 0));
-  const critChance = 0.05 + (state.skills.luck * 0.02) + critFromGear;
+  const _cls = currentClass();
+  const critChance = 0.05 + (state.skills.luck * 0.02) + critFromGear + (_cls ? _cls.critRateAdd : 0);
   const isCrit = Math.random() < critChance;
-  const dmg = Math.ceil(base * mult * (isCrit ? 2 : 1));
+  const critDmgMult = _cls ? (2 * _cls.critDmgMult) : 2;
+  const dmg = Math.ceil(base * mult * (isCrit ? critDmgMult : 1));
   let hit = false, target = null;
   for (const m of monsters) { if (m.x < 200) { target = m; break; } }
   if (!target) for (const m of monsters) { if (m.x < 300) { target = m; break; } }
@@ -601,11 +614,31 @@ function renderCompareHtml(cmp) {
 }
 
 // ============ MODAL ============
+function pickClass(id) {
+  state.classId = id;
+  const cls = CLASSES[id];
+  const newMax = Math.floor((100 + (state.level - 1) * 10 + state.skills.vitality * 20) * (cls ? cls.hpMult : 1));
+  state.catMaxHp = newMax;
+  state.catHp = newMax;
+  saveState();
+  closeModal();
+  floatTexts.push({ x: 250, y: 30, text: '选择 ' + cls.icon + cls.name, color: cls.color, life: 2.5 });
+}
+
 function openModal(type) {
   modalOpen = true;
   const el = document.getElementById('modal');
   const content = document.getElementById('modalContent');
   el.classList.add('open');
+  if (type === 'class') {
+    let html = '<h3>选择你的职业</h3><div style="font-size:10px;color:#aaa;text-align:center;margin-bottom:8px">首次进入不可取消; 影响基础属性</div>';
+    for (const k of Object.keys(CLASSES)) {
+      const c = CLASSES[k];
+      html += `<div class="row"><span><b style="color:${c.color}">${c.icon} ${c.name}</b><br><span style="font-size:9px;color:#aaa">${c.desc}</span></span><button onclick="pickClass('${k}')">选</button></div>`;
+    }
+    content.innerHTML = html;
+    return;
+  }
   if (type === 'backpack') {
     let totalC = state.chests[0] + state.chests[1] + state.chests[2];
     let html = '<h3>🎒 装备 (金币 ' + state.gold + ')</h3>';
@@ -1162,6 +1195,16 @@ if (window.__TAURI__) {
   });
   listenAx('input-tap-ok', () => { document.getElementById('axwarn').style.display = 'none'; window.tapStatus = 'ok'; });
 }
+</script>
+
+<script>
+window.addEventListener('load', () => {
+  setTimeout(() => {
+    if (!state.classId) {
+      try { openModal('class'); } catch (e) { console.warn('class modal failed', e); }
+    }
+  }, 600);
+});
 </script>
 </body>
 </html>

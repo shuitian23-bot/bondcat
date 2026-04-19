@@ -232,3 +232,13 @@
 - chapter boss 击杀掉装备 weights = [0,0,0,5,8] (只出史诗+传说)
 - 普通 boss 仍按原概率 [1,2,3,5,8]
 - defaultState/loadState 都补 chapterBossPending 默认 0 兼容旧存档
+
+## v0.6.5 — 2026-04-19
+- **职业系统上线**
+- 3 职业: 战士 +20%HP / 法师 +20%暴击伤害 / 刺客 +30%暴击率
+- state.classId 字段, 首次进入弹窗 3 选 1 不可关
+- HP 基础公式带 hpMult 系数
+- 暴击率叠加 critRateAdd, 暴击伤害基础 ×2 再乘 critDmgMult
+- 选完弹选择 X 浮字提示
+- 旧存档兼容 (loadState 默认 classId=null 触发首次选择)
+- ⚠️ 中途 Python 写文件失败把 index.html 写空, git checkout 恢复后重跑 patch
