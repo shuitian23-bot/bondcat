@@ -304,3 +304,10 @@
 - recomputeMaxHp 同步扩展支持 outfit hpMult + prestige hpStart
 - node --check 语法 ok, 核心 15 test 全过 (defaultState/loadState/旧存档兼容)
 - 浏览器里 0.7.2 启动会崩, 0.7.3 修好
+
+## v0.7.4 — 2026-04-19 (polish)
+- **修雪原/沙漠/熔岩/暗影背景太淡**: skyTint alpha 0.22 -> 0.40-0.55, groundTint alpha 0.45 -> 0.85
+- **加章节绑定天气**: 雪原章自动下雪 (覆盖随机 rain/snow 逻辑)
+- **compositeOperation multiply -> source-over**: multiply 被日光灰化, source-over 颜色准
+- **元素巫妖站桩太明显**: atkRange 350 -> 220, 让它走近一些再打
+- **boss 站桩加 sin 浮动**: y 轴上下 2px 飘动, 看起来有呼吸感

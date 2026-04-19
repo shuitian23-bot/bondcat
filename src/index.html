@@ -458,11 +458,11 @@ const MONSTER_TYPES = [
 
 // 章节主题 (每 10 级 1 章, 循环使用)
 const CHAPTERS = [
-  { name: '翠绿草原', skyTint: null, groundTint: null },
-  { name: '炽热沙漠', skyTint: 'rgba(255,180,60,0.18)', groundTint: 'rgba(220,160,80,0.35)' },
-  { name: '凛冬雪原', skyTint: 'rgba(180,220,255,0.22)', groundTint: 'rgba(230,240,255,0.45)' },
-  { name: '熔岩地狱', skyTint: 'rgba(255,60,30,0.20)', groundTint: 'rgba(180,50,30,0.40)' },
-  { name: '暗影秘境', skyTint: 'rgba(90,40,120,0.25)', groundTint: 'rgba(60,40,80,0.50)' },
+  { name: '翠绿草原', skyTint: null,                       groundTint: null,                           weather: 'clear', tintOp: 'source-over' },
+  { name: '炽热沙漠', skyTint: 'rgba(255,170,40,0.40)',    groundTint: 'rgba(240,180,90,0.85)',        weather: 'clear', tintOp: 'source-over' },
+  { name: '凛冬雪原', skyTint: 'rgba(180,220,255,0.55)',   groundTint: 'rgba(240,250,255,0.90)',       weather: 'snow',  tintOp: 'source-over' },
+  { name: '熔岩地狱', skyTint: 'rgba(180,30,20,0.50)',     groundTint: 'rgba(180,40,20,0.80)',         weather: 'clear', tintOp: 'source-over' },
+  { name: '暗影秘境', skyTint: 'rgba(40,20,60,0.55)',      groundTint: 'rgba(60,30,80,0.80)',          weather: 'clear', tintOp: 'source-over' },
 ];
 function currentChapter() {
   const idx = Math.max(0, Math.floor((state.level - 1) / 10)) % CHAPTERS.length;
@@ -1067,7 +1067,9 @@ function update(dt) {
   if (weatherTimer <= 0) {
     weatherTimer = 20 + Math.random() * 40;
     const r = Math.random();
-    weatherMode = r < 0.6 ? 'clear' : (r < 0.85 ? 'rain' : 'snow');
+    const _chW = currentChapter().weather;
+    if (_chW && _chW !== 'clear') weatherMode = _chW;
+    else weatherMode = r < 0.6 ? 'clear' : (r < 0.85 ? 'rain' : 'snow');
     weatherDrops = [];
   }
   // spawn drops
@@ -1115,7 +1117,7 @@ function update(dt) {
     if (m.frozenTimer > 0) m.frozenTimer -= dt;
     const _mt = MONSTER_TYPES[m.type];
     const isRanged = _mt.img === 'elementalLich';
-    const atkRange = isRanged ? 350 : 130;
+    const atkRange = isRanged ? 220 : 130;
     const atkCd = isRanged ? 3 : (_mt.img === 'shadowBlade' ? 1.2 : 2);
     const speedMult = (m.frozenTimer > 0) ? 0.5 : 1.0;
     if (m.x > atkRange) {
@@ -1167,11 +1169,12 @@ function render(time) {
   // clear to transparent
   ctx.clearRect(0, 0, 500, 136);
 
-  // 章节主题天空底色
+  // 章节主题天空底色 (覆盖型, 不用 multiply)
   {
     const _ch = currentChapter();
     if (_ch.skyTint) {
       ctx.save();
+      ctx.globalCompositeOperation = 'source-over';
       ctx.fillStyle = _ch.skyTint;
       ctx.fillRect(0, 0, 500, 120);
       ctx.restore();
@@ -1253,12 +1256,12 @@ function render(time) {
     ctx.fillStyle = '#1a5c1a';
     ctx.fillRect(0, 128, 500, 8);
   }
-  // 章节主题地面着色
+  // 章节主题地面着色 (覆盖型)
   {
     const _ch = currentChapter();
     if (_ch.groundTint) {
       ctx.save();
-      ctx.globalCompositeOperation = 'multiply';
+      ctx.globalCompositeOperation = 'source-over';
       ctx.fillStyle = _ch.groundTint;
       ctx.fillRect(0, 120, 500, 16);
       ctx.restore();
@@ -1274,7 +1277,9 @@ function render(time) {
   // monsters
   for (const m of monsters) {
     const t = MONSTER_TYPES[m.type];
-    drawImg(IMG[t.img], m.x, m.y, t.size, t.size, m.flash > 0);
+    let _drawY = m.y;
+    if (t.isBoss) _drawY += Math.sin(time * 0.004 + m.x * 0.01) * 2;
+    drawImg(IMG[t.img], m.x, _drawY, t.size, t.size, m.flash > 0);
     if (m.elite) {
       // gold sparkle tint
       ctx.save();
