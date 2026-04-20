@@ -1458,15 +1458,6 @@ function render(time) {
       ctx.drawImage(petImg, 0, 0, 22, 22);
       ctx.restore();
     }
-    // outfit tint overlay
-    if (state.outfit !== 0) {
-      ctx.save();
-      ctx.globalCompositeOperation = 'source-atop';
-      ctx.globalAlpha = 0.35;
-      ctx.fillStyle = state.outfit === 1 ? '#4466cc' : '#cc44ff';
-      ctx.fillRect(catX, catY, CAT_SIZE, CAT_SIZE);
-      ctx.restore();
-    }
   }
 
   // cat hp bar
@@ -1476,26 +1467,20 @@ function render(time) {
   ctx.fillStyle = hpRatio > 0.3 ? '#4c4' : '#c44';
   ctx.fillRect(catX, catY - 7, CAT_SIZE * hpRatio, 4);
 
-  // weapon swing (rotating PNG during attack)
-  // 皮肤非"普通"时自带武器, 不叠加挥砍武器贴图, 只留弧线
-  const _sskin = OUTFITS[state.outfit];
-  const _skinHasWeapon = _sskin && _sskin.img !== 'cat';
+  // weapon swing (rotating PNG during attack) — 所有皮肤都画, 保证武器始终可见
   if (attackArc > 0) {
     const pivotX = catX + CAT_SIZE - 4;
     const pivotY = catY + CAT_SIZE * 0.45;
     const swingProgress = 1 - attackArc;
     const angle = -Math.PI * 0.3 + swingProgress * Math.PI * 0.8;
-    // 没自带武器的皮肤才画旋转武器贴图
-    if (!_skinHasWeapon) {
-      const wep = state.equipment.weapon; const wepKey = wep ? wep.icon : 'swordWep'; const wepImg = IMG[wepKey];
-      if (wep && wepImg && wepImg.complete) {
-        ctx.save();
-        ctx.translate(pivotX, pivotY);
-        ctx.rotate(angle);
-        const wSize = 22;
-        ctx.drawImage(wepImg, 0, -wSize/2, wSize, wSize);
-        ctx.restore();
-      }
+    const wep = state.equipment.weapon; const wepKey = wep ? wep.icon : 'swordWep'; const wepImg = IMG[wepKey];
+    if (wep && wepImg && wepImg.complete) {
+      ctx.save();
+      ctx.translate(pivotX, pivotY);
+      ctx.rotate(angle);
+      const wSize = 22;
+      ctx.drawImage(wepImg, 0, -wSize/2, wSize, wSize);
+      ctx.restore();
     }
     // Slash 弧永远画
     ctx.strokeStyle = `rgba(255,255,255,${Math.min(1, attackArc) * 0.8})`;
