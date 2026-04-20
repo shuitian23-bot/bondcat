@@ -164,10 +164,15 @@ function defaultState() {
     achievements: [],
     bossKills: 0,
     maxCombo: 0,
+    bond: 0,
+    firstBossDone: false,
+    bondMaxShown: false,
+    lastLunchChime: 0,
+    lastNightChime: 0,
   };
 }
 function loadState() {
-  try { const s = JSON.parse(localStorage.getItem(SAVE_KEY)); if (!s || s.gold === undefined) return defaultState(); if (!s.skills) s.skills = { attack:0, vitality:0, greed:0, luck:0 }; if (s.skills.luck === undefined) s.skills.luck = 0; if (!s.achievements) s.achievements = []; if (s.bossKills === undefined) s.bossKills = 0; if (s.maxCombo === undefined) s.maxCombo = 0; if (s.chapterBossPending === undefined) s.chapterBossPending = 0; if (s.classId === undefined) s.classId = null; if (!s.pets) s.pets = []; if (s.pendingEggs === undefined) s.pendingEggs = 0; if (s.soul === undefined) s.soul = 0; if (s.prestigeCount === undefined) s.prestigeCount = 0; if (!s.prestigeBuffs) s.prestigeBuffs = { atkStart: 0, goldRate: 0, critStart: 0, hpStart: 0 }; if (!s.outfitOwned || s.outfitOwned.length < 4) s.outfitOwned = [true, s.outfitOwned && s.outfitOwned[1] || false, s.outfitOwned && s.outfitOwned[2] || false, false];
+  try { const s = JSON.parse(localStorage.getItem(SAVE_KEY)); if (!s || s.gold === undefined) return defaultState(); if (!s.skills) s.skills = { attack:0, vitality:0, greed:0, luck:0 }; if (s.skills.luck === undefined) s.skills.luck = 0; if (!s.achievements) s.achievements = []; if (s.bossKills === undefined) s.bossKills = 0; if (s.maxCombo === undefined) s.maxCombo = 0; if (s.bond === undefined) s.bond = 0; if (s.firstBossDone === undefined) s.firstBossDone = false; if (s.bondMaxShown === undefined) s.bondMaxShown = false; if (s.lastLunchChime === undefined) s.lastLunchChime = 0; if (s.lastNightChime === undefined) s.lastNightChime = 0; if (s.chapterBossPending === undefined) s.chapterBossPending = 0; if (s.classId === undefined) s.classId = null; if (!s.pets) s.pets = []; if (s.pendingEggs === undefined) s.pendingEggs = 0; if (s.soul === undefined) s.soul = 0; if (s.prestigeCount === undefined) s.prestigeCount = 0; if (!s.prestigeBuffs) s.prestigeBuffs = { atkStart: 0, goldRate: 0, critStart: 0, hpStart: 0 }; if (!s.outfitOwned || s.outfitOwned.length < 4) s.outfitOwned = [true, s.outfitOwned && s.outfitOwned[1] || false, s.outfitOwned && s.outfitOwned[2] || false, false];
     if (!s.equipment) s.equipment = { head: null, body: null, weapon: null, accessory: null };
     if (!s.inventory) s.inventory = [];
     if (!s.nextItemId) s.nextItemId = 1;
@@ -382,6 +387,19 @@ function _rollPetType() {
   for (let i = 0; i < weights.length; i++) { r -= weights[i]; if (r <= 0) { idx = i; break; } }
   return PET_TYPES[idx];
 }
+function mergePet(typeId) {
+  const idx = PET_TYPES.findIndex(t => t.id === typeId);
+  if (idx < 0 || idx >= PET_TYPES.length - 1) return;
+  const have = state.pets.filter(p => p.typeId === typeId);
+  if (have.length < 3) return;
+  const removedIds = new Set(have.slice(0, 3).map(p => p.id));
+  state.pets = state.pets.filter(p => !removedIds.has(p.id));
+  const next = PET_TYPES[idx + 1];
+  state.pets.push({ id: state.nextItemId++, typeId: next.id });
+  floatTexts.push({ x: 200, y: 30, text: '🐾 合成! ' + next.name, color: next.color, life: 2.5 });
+  saveState();
+  if (modalOpen) openModal('backpack');
+}
 function hatchAllEggs() {
   if (state.pendingEggs <= 0) return;
   const tally = {};
@@ -475,6 +493,28 @@ let comboTimer = 0;
 let lastComboMilestone = 0;
 let catDead = 0;
 let spawnTimer = 0;
+// 羁绊值/陪伴系统: 停打字猫咪会陪伴, 回来有 buff 情绪反馈
+let idleSec = 0;            // 自上次敲键过去秒数
+let dozeShown = false;      // 本次 idle session 是否已弹打盹台词
+let lastAttackWall = 0;     // 上次敲键 wall-clock ms (用于 idleReturn 判定)
+
+// 台词系统 (叙事设计师 2026-04-20)
+const TAUNTS = {
+  firstBoss:  ['第一次…手有点抖喵', '这就是老大喵？上！'],
+  prestige:   ['再来亿次，陪你到秃头', '凡人啊…再来一次'],
+  legendary:  ['这把…认主了喵', '传说之力…到手喵'],
+  idleReturn: ['你回来了喵！！', '就知道你会回来喵', '想死你啦铲屎的'],
+  idleDoze:   ['喂？…摸鱼去了喵？', '键盘冷了…我也冷了喵', 'zzz…你是不是睡着了喵'],
+  lateNight:  ['又肝…剑都快拿不动了喵', 'deadline 的味道…我闻到了'],
+  lunch:      ['铲屎的去吃饭喵，我守着代码', '碗呢？喂我一口再敲键盘'],
+  combo50:    ['停不下来了喵——', '敲成闪电喵！'],
+  bondMax:    ['我们…形影不离了喵'],
+};
+function sayTaunt(key) {
+  const arr = TAUNTS[key]; if (!arr || !arr.length) return;
+  const line = arr[Math.floor(Math.random() * arr.length)];
+  floatTexts.push({ x: 120, y: 40, text: '💬 ' + line, color: '#ffd9b0', life: 3.0 });
+}
 let modalOpen = false;
 let stars = [];
 
@@ -589,11 +629,26 @@ function comboMultiplier() {
 
 function playerAttack() {
   if (catDead > 0) return;
+  // 羁绊 +1, 上限 100
+  if (state.bond < 100) state.bond++;
+  if (state.bond >= 100 && !state.bondMaxShown) { state.bondMaxShown = true; sayTaunt('bondMax'); }
+  // idleReturn 台词: 离开超 30s 回来
+  const _nowMs = Date.now();
+  if (lastAttackWall > 0 && _nowMs - lastAttackWall > 30000 && dozeShown) {
+    sayTaunt('idleReturn');
+  }
+  lastAttackWall = _nowMs;
+  idleSec = 0;
+  dozeShown = false;
   attackAnim = 0.5;
   attackArc = 1.2;
   const mult = comboMultiplier();
   const atkBuff = 1 + (state.skills.attack * 0.1);
-  const wepDmg = sumEquipStat(itemTotalDmg); const fistDmg = wepDmg > 0 ? 0 : 1; const prestigeAtk = state.prestigeBuffs.atkStart || 0; const base = (wepDmg + fistDmg + Math.floor(state.level * 0.5) + totalPetAtkBonus() + prestigeAtk) * atkBuff;
+  const wepDmg = sumEquipStat(itemTotalDmg); const fistDmg = wepDmg > 0 ? 0 : 1; const prestigeAtk = state.prestigeBuffs.atkStart || 0;
+  const _nonPetAtk = wepDmg + fistDmg + Math.floor(state.level * 0.5) + prestigeAtk;
+  // 宠物攻击 50% hardcap: 宠物总贡献 ≤ 玩家自身 (装备+等级+转生), 防止后期宠物滚雪球篡夺核心
+  const _petCapped = Math.min(totalPetAtkBonus(), _nonPetAtk);
+  const base = (_nonPetAtk + _petCapped) * atkBuff;
   const critFromGear = sumEquipStat(it => (it ? it.affixes.filter(a=>a.key==='critBonus').reduce((s,a)=>s+a.value*0.01,0) : 0));
   const _cls = currentClass();
   const _skinBonusRate = OUTFITS[state.outfit] && OUTFITS[state.outfit].bonus;
@@ -667,6 +722,7 @@ function playerAttack() {
       if (comboCount === ms && lastComboMilestone < ms) {
         lastComboMilestone = ms;
         floatTexts.push({ x: 250, y: 50, text: 'COMBO x' + ms + '!', color: '#ffff00', life: 1.5 });
+        if (ms >= 50) sayTaunt('combo50');
         break;
       }
     }
@@ -704,6 +760,7 @@ function killMonster(m) {
   }
   if (t.isBoss) {
     floatTexts.push({ x: 250, y: 40, text: '💥 BOSS 已斩!', color: '#ffff40', life: 2.0 });
+    if (!state.firstBossDone) { state.firstBossDone = true; sayTaunt('firstBoss'); }
   }
   // 宠物蛋掉落 (boss 20%, 其他 5%)
   const eggChance = t.isBoss ? 0.20 : 0.05;
@@ -731,6 +788,7 @@ function killMonster(m) {
     const item = genItem(slot, rIdx);
     state.inventory.push(item);
     floatTexts.push({ x: m.x, y: m.y - 10, text: '📦 ' + RARITY[rIdx].name + item.name, color: RARITY[rIdx].color, life: 1.8 });
+    if (rIdx >= RARITY.length - 1) sayTaunt('legendary');
   }
   saveState();
 }
@@ -835,12 +893,16 @@ function openModal(type) {
         const grouped = {};
         for (const p of state.pets) grouped[p.typeId] = (grouped[p.typeId] || 0) + 1;
         let gridHtml = '<div style="display:flex;flex-wrap:wrap;gap:3px;padding:3px;border:1px solid #333;border-radius:3px;margin-bottom:4px">';
-        for (const t of PET_TYPES) {
+        const _lastIdx = PET_TYPES.length - 1;
+        for (let _ti = 0; _ti < PET_TYPES.length; _ti++) {
+          const t = PET_TYPES[_ti];
           const c = grouped[t.id] || 0;
           if (c === 0) continue;
           const atkSum = c * t.atkBonus;
           const critSum = (c * t.critBonus * 100).toFixed(0);
-          gridHtml += `<div style="display:flex;align-items:center;gap:2px;padding:2px 4px;border:1px solid ${t.color};border-radius:3px;font-size:9px" title="${t.name} x${c} (+${atkSum}攻, +${critSum}%暴)"><img src="assets/${t.img}.png" style="width:14px;height:14px;image-rendering:pixelated"><span style="color:${t.color}">x${c}</span></div>`;
+          const canMerge = c >= 3 && _ti < _lastIdx;
+          const mergeBtn = canMerge ? `<button onclick="mergePet('${t.id}')" style="font-size:8px;padding:1px 3px;margin-left:2px" title="3合1 → ${PET_TYPES[_ti+1].name}">合</button>` : '';
+          gridHtml += `<div style="display:flex;align-items:center;gap:2px;padding:2px 4px;border:1px solid ${t.color};border-radius:3px;font-size:9px" title="${t.name} x${c} (+${atkSum}攻, +${critSum}%暴)"><img src="assets/${t.img}.png" style="width:14px;height:14px;image-rendering:pixelated"><span style="color:${t.color}">x${c}</span>${mergeBtn}</div>`;
         }
         gridHtml += '</div>';
         html += gridHtml;
@@ -1123,6 +1185,7 @@ function doPrestige() {
   applyPrestigeStart();
   saveState();
   floatTexts.push({ x: 200, y: 30, text: '★ 转生 +' + gain + ' 灵魂', color: '#ffd700', life: 3.0 });
+  sayTaunt('prestige');
   closeModal();
 }
 function applyPrestigeStart() {
@@ -1162,6 +1225,25 @@ let lastTime = performance.now();
 
 function update(dt) {
   if (modalOpen) return;
+
+  // 羁绊/陪伴节律
+  idleSec += dt;
+  if (idleSec > 30 && !dozeShown) { dozeShown = true; sayTaunt('idleDoze'); }
+  if (idleSec > 60) {
+    // 每秒 bond -1, 最低 0
+    if (state.bond > 0) state.bond = Math.max(0, state.bond - dt * 1);
+  }
+  // 整点彩蛋: 午餐 (12:00-12:30)/深夜 (01:00-04:00)，每天最多 1 次
+  {
+    const _d = new Date();
+    const _today = _d.getFullYear() * 10000 + (_d.getMonth() + 1) * 100 + _d.getDate();
+    const _hr = _d.getHours();
+    if (_hr === 12 && state.lastLunchChime !== _today) {
+      state.lastLunchChime = _today; sayTaunt('lunch');
+    } else if (_hr >= 1 && _hr <= 4 && state.lastNightChime !== _today) {
+      state.lastNightChime = _today; sayTaunt('lateNight');
+    }
+  }
 
   // spawn
   spawnTimer -= dt;
@@ -1228,42 +1310,8 @@ function update(dt) {
   // cat flash
   if (catFlash > 0) catFlash -= dt;
 
-  // 宠物独立攻击 (每 ~2.5s 对最近怪造成其 atkBonus 伤害, 带彩色粒子轨迹)
-  if (!window.__petAtkTimers) window.__petAtkTimers = [];
-  for (let pi = 0; pi < state.pets.length; pi++) {
-    window.__petAtkTimers[pi] = (window.__petAtkTimers[pi] || Math.random() * 2) + dt;
-    if (window.__petAtkTimers[pi] >= 2.5) {
-      window.__petAtkTimers[pi] = 0;
-      const pt = PET_TYPES.find(x => x.id === state.pets[pi].typeId);
-      if (pt && monsters.length > 0) {
-        // 找最近怪 (x 最小)
-        let tgt = null;
-        for (const m of monsters) {
-          if (m.hp <= 0) continue;
-          if (!tgt || m.x < tgt.x) tgt = m;
-        }
-        if (tgt) {
-          tgt.hp -= pt.atkBonus;
-          tgt.flash = 0.1;
-          floatTexts.push({ x: tgt.x + 10, y: tgt.y - 15, text: '-' + pt.atkBonus, color: pt.color, life: 0.6 });
-          // 粒子轨迹 (从宠物到怪物)
-          const petStartX = 80 - 26 - pi * 24 + 11;
-          const petStartY = 136 - 60 + 2;
-          for (let k = 0; k < 6; k++) {
-            const t = k / 6;
-            particles.push({
-              x: petStartX + (tgt.x + tgt.size/2 - petStartX) * t,
-              y: petStartY + (tgt.y + tgt.size/2 - petStartY) * t,
-              vx: 0, vy: 0,
-              color: pt.color, life: 0.3, size: 2, glow: true,
-              gravity: 0, drag: 1,
-            });
-          }
-          if (tgt.hp <= 0) killMonster(tgt);
-        }
-      }
-    }
-  }
+  // 宠物协同攻击: 只在玩家敲键触发 playerAttack 时叠加 (passive atk bonus), 不再自动独立攻击
+  // 核心合同: 不敲键盘=不打怪. 旧的独立定时攻击已移除
   // monsters
   for (const m of monsters) {
     if (m.hp <= 0) continue;
@@ -1505,6 +1553,18 @@ function render(time) {
   ctx.fillStyle = hpRatio > 0.3 ? '#4c4' : '#c44';
   ctx.fillRect(catX, catY - 7, CAT_SIZE * hpRatio, 4);
 
+  // 打字停摆: 猫咪陪伴 Z 气泡 (idleSec > 10 显示, >30 变 zzz)
+  if (idleSec > 10 && catDead <= 0) {
+    const zz = idleSec > 30 ? '💤' : '…';
+    const bob = Math.sin(time * 0.003) * 2;
+    ctx.save();
+    ctx.font = 'bold 14px system-ui';
+    ctx.globalAlpha = 0.75;
+    ctx.fillStyle = '#ffeedd';
+    ctx.fillText(zz, catX + CAT_SIZE + 2, catY + 12 + bob);
+    ctx.restore();
+  }
+
   // weapon swing — 仅默认皮肤画挥砍武器PNG (其他皮肤自带武器 + 整体前倾模拟)
   if (attackArc > 0) {
     const pivotX = catX + CAT_SIZE - 4;
@@ -1580,7 +1640,8 @@ function gameLoop(now) {
     const xpNeeded = state.level * 15; const xpPct = Math.min(100, (state.xp / xpNeeded) * 100); document.getElementById('xpbar').style.width = xpPct + '%';
     const _nextCh = Math.floor(state.level / 10) * 10 + 1;
     const _chHint = (state.level < _nextCh - 1) ? ` →Lv${_nextCh}` : '';
-    document.getElementById('stats').textContent = `[${currentChapter().name}${_chHint}] 💰${state.gold} ⚔️${state.kills} Lv${state.level}${comboStr}`;
+    const bondStr = state.bond > 0 ? ` ❤${Math.floor(state.bond)}` : '';
+    document.getElementById('stats').textContent = `[${currentChapter().name}${_chHint}] 💰${state.gold} ⚔️${state.kills} Lv${state.level}${bondStr}${comboStr}`;
   } catch(e) { console.error(e); }
   requestAnimationFrame(gameLoop);
 }
