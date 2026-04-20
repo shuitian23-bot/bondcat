@@ -368,16 +368,36 @@ const PET_TYPES = [
 function hatchEgg() {
   if (state.pendingEggs <= 0) return;
   state.pendingEggs--;
-  // 等级越高, 抽到高级宠物概率越大
+  const petT = _rollPetType();
+  state.pets.push({ id: state.nextItemId++, typeId: petT.id });
+  floatTexts.push({ x: 200, y: 30, text: '🐾 孵出 ' + petT.name + '!', color: petT.color, life: 2.5 });
+  saveState();
+  if (modalOpen) openModal('backpack');
+}
+function _rollPetType() {
   const lv = state.level;
   const weights = [Math.max(1, 20 - lv), Math.max(1, 15 - lv), Math.max(1, 10 - lv * 0.5), Math.max(1, 5), Math.max(0.5, lv * 0.2)];
   const totalW = weights.reduce((a,b) => a+b, 0);
   let r = Math.random() * totalW, idx = 0;
   for (let i = 0; i < weights.length; i++) { r -= weights[i]; if (r <= 0) { idx = i; break; } }
-  const petT = PET_TYPES[idx];
-  const pet = { id: state.nextItemId++, typeId: petT.id };
-  state.pets.push(pet);
-  floatTexts.push({ x: 200, y: 30, text: '🐾 孵出 ' + petT.name + '!', color: petT.color, life: 2.5 });
+  return PET_TYPES[idx];
+}
+function hatchAllEggs() {
+  if (state.pendingEggs <= 0) return;
+  const tally = {};
+  const n = state.pendingEggs;
+  for (let i = 0; i < n; i++) {
+    const petT = _rollPetType();
+    state.pets.push({ id: state.nextItemId++, typeId: petT.id });
+    tally[petT.id] = (tally[petT.id] || 0) + 1;
+  }
+  state.pendingEggs = 0;
+  let y = 20;
+  for (const k of Object.keys(tally)) {
+    const t = PET_TYPES.find(x => x.id === k);
+    floatTexts.push({ x: 200, y, text: '🐾 ' + t.name + ' x' + tally[k], color: t.color, life: 2.5 });
+    y += 14;
+  }
   saveState();
   if (modalOpen) openModal('backpack');
 }
@@ -478,11 +498,11 @@ const MONSTER_TYPES = [
 
 // 章节主题 (每 10 级 1 章, 循环使用)
 const CHAPTERS = [
-  { name: '翠绿草原', skyTint: null,                       groundTint: null,                           weather: 'clear', tintOp: 'source-over' },
-  { name: '炽热沙漠', skyTint: 'rgba(255,170,40,0.40)',    groundTint: 'rgba(240,180,90,0.85)',        weather: 'clear', tintOp: 'source-over' },
-  { name: '凛冬雪原', skyTint: 'rgba(180,220,255,0.55)',   groundTint: 'rgba(240,250,255,0.90)',       weather: 'snow',  tintOp: 'source-over' },
-  { name: '熔岩地狱', skyTint: 'rgba(180,30,20,0.50)',     groundTint: 'rgba(180,40,20,0.80)',         weather: 'clear', tintOp: 'source-over' },
-  { name: '暗影秘境', skyTint: 'rgba(40,20,60,0.55)',      groundTint: 'rgba(60,30,80,0.80)',          weather: 'clear', tintOp: 'source-over' },
+  { name: '翠绿草原', skyTint: null,                       groundTint: null,                           weather: 'clear', tintOp: 'multiply' },
+  { name: '炽热沙漠', skyTint: 'rgba(255,170,40,0.22)',    groundTint: 'rgba(240,180,90,0.45)',        weather: 'clear', tintOp: 'multiply' },
+  { name: '凛冬雪原', skyTint: 'rgba(180,220,255,0.30)',   groundTint: 'rgba(240,250,255,0.48)',       weather: 'snow',  tintOp: 'multiply' },
+  { name: '熔岩地狱', skyTint: 'rgba(180,30,20,0.28)',     groundTint: 'rgba(180,40,20,0.45)',         weather: 'clear', tintOp: 'multiply' },
+  { name: '暗影秘境', skyTint: 'rgba(40,20,60,0.32)',      groundTint: 'rgba(60,30,80,0.45)',          weather: 'clear', tintOp: 'multiply' },
 ];
 function currentChapter() {
   const idx = Math.max(0, Math.floor((state.level - 1) / 10)) % CHAPTERS.length;
@@ -560,10 +580,10 @@ function spawnMonster() {
 
 // ============ ATTACK ============
 function comboMultiplier() {
-  if (comboCount >= 30) return 4;
-  if (comboCount >= 20) return 3;
-  if (comboCount >= 10) return 2;
-  if (comboCount >= 5) return 1.5;
+  if (comboCount >= 100) return 4;
+  if (comboCount >= 50) return 3;
+  if (comboCount >= 25) return 2;
+  if (comboCount >= 10) return 1.5;
   return 1;
 }
 
@@ -580,7 +600,7 @@ function playerAttack() {
   const outfitCritRate = (_skinBonusRate && _skinBonusRate.key === 'critRateAdd') ? _skinBonusRate.value : 0;
   let critChance = 0.05 + (state.skills.luck * 0.02) + critFromGear + (_cls ? _cls.critRateAdd : 0) + outfitCritRate + totalPetCritBonus() + (state.prestigeBuffs.critStart || 0) * 0.01;
   // 刺客被动: 连击 >=5 时暴击率 ×2
-  if (_cls && _cls.id === 'rogue' && comboCount >= 5) critChance *= 2;
+  if (_cls && _cls.id === 'rogue' && comboCount >= 10) critChance *= 2;
   const isCrit = Math.random() < critChance;
   const _skinBonus = OUTFITS[state.outfit] && OUTFITS[state.outfit].bonus;
   const outfitCritDmg = (_skinBonus && _skinBonus.key === 'critDmgMult') ? _skinBonus.value : 1.0;
@@ -640,9 +660,9 @@ function playerAttack() {
       if (heal > 0) floatTexts.push({ x: 100, y: 55, text: '+' + heal, color: '#44ff88', life: 0.7 });
     }
     comboCount++;
-    comboTimer = 2.0;
+    comboTimer = 3.0;
     if (comboCount > state.maxCombo) state.maxCombo = comboCount;
-    const milestones = [5,10,20,30];
+    const milestones = [10,25,50,100];
     for (const ms of milestones) {
       if (comboCount === ms && lastComboMilestone < ms) {
         lastComboMilestone = ms;
@@ -808,11 +828,22 @@ function openModal(type) {
     if (state.pendingEggs > 0 || state.pets.length > 0) {
       html += '<div style="font-size:9px;color:#ffeedd;margin:3px 0">🐾 宠物 (+' + totalPetAtkBonus() + ' 攻, +' + (totalPetCritBonus()*100).toFixed(0) + '% 暴)</div>';
       if (state.pendingEggs > 0) {
-        html += `<div class="row"><span>🥚 ${state.pendingEggs} 枚未孵化蛋</span><button onclick="hatchEgg()">孵化</button></div>`;
+        const hatchAllBtn = state.pendingEggs >= 2 ? `<button onclick="hatchAllEggs()" style="margin-left:3px">全孵</button>` : '';
+        html += `<div class="row"><span>🥚 ${state.pendingEggs} 枚未孵化蛋</span><span><button onclick="hatchEgg()">孵化</button>${hatchAllBtn}</span></div>`;
       }
       if (state.pets.length > 0) {
-        let petIcons = state.pets.map(p => { const t = PET_TYPES.find(x => x.id === p.typeId); return t ? `<span style="color:${t.color}" title="${t.name}">${t.name[0]}</span>` : ''; }).join(' ');
-        html += `<div style="font-size:9px;color:#aaa;padding:2px 4px;border:1px solid #333;border-radius:3px;margin-bottom:4px">${petIcons}</div>`;
+        const grouped = {};
+        for (const p of state.pets) grouped[p.typeId] = (grouped[p.typeId] || 0) + 1;
+        let gridHtml = '<div style="display:flex;flex-wrap:wrap;gap:3px;padding:3px;border:1px solid #333;border-radius:3px;margin-bottom:4px">';
+        for (const t of PET_TYPES) {
+          const c = grouped[t.id] || 0;
+          if (c === 0) continue;
+          const atkSum = c * t.atkBonus;
+          const critSum = (c * t.critBonus * 100).toFixed(0);
+          gridHtml += `<div style="display:flex;align-items:center;gap:2px;padding:2px 4px;border:1px solid ${t.color};border-radius:3px;font-size:9px" title="${t.name} x${c} (+${atkSum}攻, +${critSum}%暴)"><img src="assets/${t.img}.png" style="width:14px;height:14px;image-rendering:pixelated"><span style="color:${t.color}">x${c}</span></div>`;
+        }
+        gridHtml += '</div>';
+        html += gridHtml;
       }
     }
     // Equipped row
@@ -1292,12 +1323,12 @@ function render(time) {
   // clear to transparent
   ctx.clearRect(0, 0, 500, 136);
 
-  // 章节主题天空底色 (覆盖型, 不用 multiply)
+  // 章节主题天空底色 (multiply 保留前景亮部, 不压死角色)
   {
     const _ch = currentChapter();
     if (_ch.skyTint) {
       ctx.save();
-      ctx.globalCompositeOperation = 'source-over';
+      ctx.globalCompositeOperation = _ch.tintOp || 'multiply';
       ctx.fillStyle = _ch.skyTint;
       ctx.fillRect(0, 0, 500, 120);
       ctx.restore();
@@ -1379,12 +1410,12 @@ function render(time) {
     ctx.fillStyle = '#1a5c1a';
     ctx.fillRect(0, 128, 500, 8);
   }
-  // 章节主题地面着色 (覆盖型)
+  // 章节主题地面着色 (multiply 保留地面纹理)
   {
     const _ch = currentChapter();
     if (_ch.groundTint) {
       ctx.save();
-      ctx.globalCompositeOperation = 'source-over';
+      ctx.globalCompositeOperation = _ch.tintOp || 'multiply';
       ctx.fillStyle = _ch.groundTint;
       ctx.fillRect(0, 120, 500, 16);
       ctx.restore();
@@ -1430,9 +1461,16 @@ function render(time) {
   if (catVisible) {
     const _skin = OUTFITS[state.outfit] || OUTFITS[0];
     const _skinImg = IMG[_skin.img] || IMG.cat;
-    // 水平翻转让猫朝右 (怪来方向)
+    // 水平翻转让猫朝右 (怪来方向). 皮肤自带武器时攻击瞬间整体前倾模拟挥砍
     if (_skinImg && _skinImg.complete) {
       ctx.save();
+      if (attackArc > 0 && state.outfit !== 0) {
+        const _swingP = Math.max(0, Math.min(1, 1 - attackArc));
+        const _lean = Math.sin(_swingP * Math.PI) * 0.24;
+        ctx.translate(catX + CAT_SIZE, catY + CAT_SIZE);
+        ctx.rotate(_lean);
+        ctx.translate(-(catX + CAT_SIZE), -(catY + CAT_SIZE));
+      }
       ctx.translate(catX + CAT_SIZE, catY);
       ctx.scale(-1, 1);
       ctx.drawImage(_skinImg, 0, 0, CAT_SIZE, CAT_SIZE);
@@ -1467,20 +1505,22 @@ function render(time) {
   ctx.fillStyle = hpRatio > 0.3 ? '#4c4' : '#c44';
   ctx.fillRect(catX, catY - 7, CAT_SIZE * hpRatio, 4);
 
-  // weapon swing (rotating PNG during attack) — 所有皮肤都画, 保证武器始终可见
+  // weapon swing — 仅默认皮肤画挥砍武器PNG (其他皮肤自带武器 + 整体前倾模拟)
   if (attackArc > 0) {
     const pivotX = catX + CAT_SIZE - 4;
     const pivotY = catY + CAT_SIZE * 0.45;
     const swingProgress = 1 - attackArc;
     const angle = -Math.PI * 0.3 + swingProgress * Math.PI * 0.8;
-    const wep = state.equipment.weapon; const wepKey = wep ? wep.icon : 'swordWep'; const wepImg = IMG[wepKey];
-    if (wep && wepImg && wepImg.complete) {
-      ctx.save();
-      ctx.translate(pivotX, pivotY);
-      ctx.rotate(angle);
-      const wSize = 22;
-      ctx.drawImage(wepImg, 0, -wSize/2, wSize, wSize);
-      ctx.restore();
+    if (state.outfit === 0) {
+      const wep = state.equipment.weapon; const wepKey = wep ? wep.icon : 'swordWep'; const wepImg = IMG[wepKey];
+      if (wep && wepImg && wepImg.complete) {
+        ctx.save();
+        ctx.translate(pivotX, pivotY);
+        ctx.rotate(angle);
+        const wSize = 22;
+        ctx.drawImage(wepImg, 0, -wSize/2, wSize, wSize);
+        ctx.restore();
+      }
     }
     // Slash 弧永远画
     ctx.strokeStyle = `rgba(255,255,255,${Math.min(1, attackArc) * 0.8})`;
