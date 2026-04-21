@@ -150,7 +150,52 @@ fn main() {
                 let _ = window.set_position(tauri::LogicalPosition::new(x as f64, y as f64));
             }
 
-            // ---- Global input via CGEventTap ----
+            // ---- Global input: Windows/Linux via rdev ----
+            #[cfg(not(target_os = "macos"))]
+            {
+                let app_handle = app.handle().clone();
+                // Poll-emit thread (同 mac 分支, 读取 KEY/MOUSE_COUNTER 发事件)
+                let h_poll = app_handle.clone();
+                thread::spawn(move || {
+                    let mut last_total = 0u64;
+                    let mut tick = 0u64;
+                    loop {
+                        thread::sleep(Duration::from_millis(30));
+                        let k = KEY_COUNTER.load(Ordering::Relaxed);
+                        let m = MOUSE_COUNTER.load(Ordering::Relaxed);
+                        let total = k + m;
+                        if total != last_total {
+                            let _ = h_poll.emit("global-input", total);
+                            last_total = total;
+                        }
+                        tick += 1;
+                        if tick % 20 == 0 {
+                            let _ = h_poll.emit("input-heartbeat", serde_json::json!({"k": k, "m": m}));
+                            let _ = h_poll.emit("input-tap-ok", ());
+                        }
+                    }
+                });
+                // rdev::listen 阻塞, 放独立线程
+                thread::spawn(move || {
+                    use rdev::{listen, Event, EventType};
+                    if let Err(e) = listen(|event: Event| {
+                        match event.event_type {
+                            EventType::KeyPress(_) => {
+                                KEY_COUNTER.fetch_add(1, Ordering::Relaxed);
+                            }
+                            EventType::ButtonPress(_) => {
+                                MOUSE_COUNTER.fetch_add(1, Ordering::Relaxed);
+                            }
+                            _ => {}
+                        }
+                    }) {
+                        eprintln!("rdev listen failed: {:?}", e);
+                        let _ = app_handle.emit("input-tap-failed", ());
+                    }
+                });
+            }
+
+            // ---- Global input via CGEventTap (macOS) ----
             #[cfg(target_os = "macos")]
             {
                 // Trigger native Accessibility prompt via AXIsProcessTrustedWithOptions

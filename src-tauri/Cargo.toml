@@ -1,6 +1,6 @@
 [package]
 name = "bondcat"
-version = "0.7.14"
+version = "0.7.15"
 description = "像素邦德小猫·敲敲打宝"
 authors = ["baiyu"]
 edition = "2021"
@@ -13,6 +13,10 @@ tauri = { version = "2", features = ["tray-icon", "macos-private-api"] }
 tauri-plugin-shell = "2"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
+
+# Windows/Linux 全局键鼠监听 (mac 端已用 CGEventTap)
+[target.'cfg(not(target_os = "macos"))'.dependencies]
+rdev = "0.5"
 
 [features]
 default = ["custom-protocol"]
