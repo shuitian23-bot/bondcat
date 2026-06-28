@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="zh">
+<html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=500, height=160">
-<title>邦德猫</title>
+<title>BondCat</title>
 <style>
 * { margin:0; padding:0; box-sizing:border-box; }
 body { width:500px; height:160px; overflow:hidden; background:transparent; font-family:'Segoe UI',sans-serif; user-select:none; }
@@ -49,7 +49,7 @@ canvas { display:block; }
 </head>
 <body>
 <div id="titlebar" data-tauri-drag-region>
-  <span class="title" data-tauri-drag-region id="appTitle">邦德猫</span>
+  <span class="title" data-tauri-drag-region id="appTitle">BondCat</span>
   <span class="stats" id="stats" data-tauri-drag-region></span>
   <div class="btns">
     <button onclick="openModal('paperdoll')">👤</button>
@@ -58,26 +58,192 @@ canvas { display:block; }
     <button onclick="openModal('skills')">🌟</button>
     <button onclick="openModal('prestige')">★</button>
     <button onclick="openModal('achievements')">🏆</button>
+    <button id="langBtn" onclick="toggleLanguage()">中</button>
     <button onclick="hideWindow()">✕</button>
   </div>
 </div>
 <canvas id="game" width="500" height="136"></canvas>
 <div id="xpbar" style="position:absolute;top:24px;left:0;width:0;height:2px;background:linear-gradient(90deg,#f0a040,#ffd880);pointer-events:none;z-index:50;transition:width 0.2s;"></div>
 <div id="axwarn" style="display:none;position:fixed;top:24px;left:0;width:500px;background:#cc3300;color:#fff;font-size:10px;padding:4px 8px;z-index:200;text-align:center;">
-  ⚠️ 需要辅助功能权限 <button onclick="openAxSettings()" style="background:#fff;color:#c30;border:none;padding:1px 6px;border-radius:3px;font-size:9px;cursor:pointer;margin-left:4px;">打开设置</button>
-  <span style="font-size:8px;display:block;margin-top:2px;">授权后需重启App</span>
+  ⚠️ <span id="axTitle">Accessibility permission required</span> <button id="axButton" onclick="openAxSettings()" style="background:#fff;color:#c30;border:none;padding:1px 6px;border-radius:3px;font-size:9px;cursor:pointer;margin-left:4px;">Open Settings</button>
+  <span id="axSubtitle" style="font-size:8px;display:block;margin-top:2px;">Restart the app after granting permission</span>
 </div>
 
-<div id="modal"><div class="panel" id="modalContent"></div><div class="close-hint">ESC 关闭</div></div>
+<div id="modal"><div class="panel" id="modalContent"></div><div class="close-hint" id="closeHint">ESC Close</div></div>
 
 <script>
+const LANG_KEY = 'bondcat_lang';
+function detectLanguage() {
+  const saved = localStorage.getItem(LANG_KEY);
+  if (saved === 'zh' || saved === 'en') return saved;
+  const browserLang = (navigator.language || '').toLowerCase();
+  return browserLang.startsWith('zh') ? 'zh' : 'en';
+}
+let currentLang = detectLanguage();
+let appVersion = '';
+
+const TEXT_EN = {
+  '邦德猫': 'BondCat',
+  '需要辅助功能权限': 'Accessibility permission required',
+  '打开设置': 'Open Settings',
+  '授权后需重启App': 'Restart the app after granting permission',
+  'ESC 关闭': 'ESC Close',
+  '布帽': 'Cloth Cap',
+  '皮盔': 'Leather Helm',
+  '铁盔': 'Iron Helm',
+  '布衣': 'Cloth Shirt',
+  '皮甲': 'Leather Armor',
+  '板甲': 'Plate Armor',
+  '木剑': 'Wooden Sword',
+  '铁锤': 'Iron Hammer',
+  '魔杖': 'Magic Wand',
+  '幸运符': 'Lucky Charm',
+  '利爪项链': 'Claw Necklace',
+  '魔力戒指': 'Mana Ring',
+  '+暴击': '+Crit',
+  '+攻': '+ATK',
+  '+HP': '+HP',
+  '+吸血': '+Lifesteal',
+  '+金币': '+Gold',
+  '普通': 'Normal',
+  '精良': 'Fine',
+  '稀有': 'Rare',
+  '史诗': 'Epic',
+  '传说': 'Legendary',
+  '小史莱姆': 'Tiny Slime',
+  '小蝙蝠': 'Tiny Bat',
+  '小骷髅': 'Tiny Skeleton',
+  '小哥布林': 'Tiny Goblin',
+  '小赤龙': 'Tiny Red Dragon',
+  '骑士': 'Knight',
+  '法师': 'Mage',
+  '刺客': 'Rogue',
+  '+5% 暴击伤害': '+5% Crit Damage',
+  '+3% 暴击率': '+3% Crit Rate',
+  '战士': 'Warrior',
+  '+20% 最大HP': '+20% Max HP',
+  '+20% 暴击伤害': '+20% Crit Damage',
+  '+30% 暴击率': '+30% Crit Rate',
+  '史莱姆': 'Slime',
+  '蝙蝠': 'Bat',
+  '骷髅': 'Skeleton',
+  '哥布林': 'Goblin',
+  '赤龙王': 'Red Dragon King',
+  '骸骨王': 'Skeleton King',
+  '影刺客': 'Shadow Blade',
+  '元素巫妖': 'Elemental Lich',
+  '翠绿草原': 'Emerald Meadow',
+  '炽热沙漠': 'Scorching Desert',
+  '凛冬雪原': 'Winter Snowfield',
+  '熔岩地狱': 'Lava Inferno',
+  '暗影秘境': 'Shadow Realm',
+  '首杀': 'First Blood',
+  '击败第一只怪物': 'Defeat your first monster',
+  '猎人': 'Hunter',
+  '累计击杀 50': 'Defeat 50 monsters',
+  '屠戮者': 'Slayer',
+  '累计击杀 500': 'Defeat 500 monsters',
+  '小康': 'Comfortable',
+  '持有 1000 金币': 'Hold 1,000 gold',
+  '巨贾': 'Tycoon',
+  '持有 10000 金币': 'Hold 10,000 gold',
+  '学徒': 'Apprentice',
+  '达到 5 级': 'Reach level 5',
+  '大师': 'Master',
+  '达到 15 级': 'Reach level 15',
+  '连击手': 'Combo Starter',
+  '连击 10': 'Reach a 10 combo',
+  '机枪手': 'Rapid Typer',
+  '连击 30': 'Reach a 30 combo',
+  '屠龙者': 'Dragon Slayer',
+  '首次击杀 BOSS': 'Defeat a boss for the first time',
+  '初始攻击': 'Starting Attack',
+  '+1 起始攻击/级': '+1 starting ATK per level',
+  '金币倍率': 'Gold Multiplier',
+  '+5% 金币掉落/级': '+5% gold drops per level',
+  '初始暴击': 'Starting Crit',
+  '+1% 起始暴击率/级': '+1% starting crit per level',
+  '初始HP': 'Starting HP',
+  '+20 起始最大HP/级': '+20 starting max HP per level',
+  '强化攻击': 'Attack Boost',
+  '+10% 攻击/级': '+10% attack per level',
+  '生命强化': 'Vitality',
+  '+20 最大HP/级': '+20 max HP per level',
+  '贪婪': 'Greed',
+  '+10% 金币/级': '+10% gold per level',
+  '幸运': 'Luck',
+  '+2% 暴击/级': '+2% crit per level',
+  '第一次…手有点抖喵': 'First time... my paws are shaking.',
+  '这就是老大喵？上！': 'That is the boss? Charge!',
+  '再来亿次，陪你到秃头': 'Again and again. I am with you.',
+  '凡人啊…再来一次': 'Mortal... one more run.',
+  '这把…认主了喵': 'This one chose us.',
+  '传说之力…到手喵': 'Legendary power acquired.',
+  '你回来了喵！！': 'You are back!',
+  '就知道你会回来喵': 'I knew you would return.',
+  '想死你啦铲屎的': 'Missed you so much!',
+  '喂？…摸鱼去了喵？': 'Hey... taking a break?',
+  '键盘冷了…我也冷了喵': 'The keyboard is cold. So am I.',
+  'zzz…你是不是睡着了喵': 'zzz... did you fall asleep?',
+  '又肝…剑都快拿不动了喵': 'Still grinding... the sword is heavy.',
+  'deadline 的味道…我闻到了': 'I smell a deadline.',
+  '铲屎的去吃饭喵，我守着代码': 'Go eat. I will guard the code.',
+  '碗呢？喂我一口再敲键盘': 'Where is my bowl? Feed me first.',
+  '停不下来了喵——': 'No stopping now!',
+  '敲成闪电喵！': 'Typing like lightning!',
+  '我们…形影不离了喵': 'We are inseparable now.'
+};
+
+const TEXT = {
+  appName: () => currentLang === 'zh' ? '邦德猫' : 'BondCat',
+  closeHint: () => currentLang === 'zh' ? 'ESC 关闭' : 'ESC Close',
+};
+
+function tx(zh) {
+  if (!zh || currentLang === 'zh') return zh;
+  return TEXT_EN[zh] || zh;
+}
+function choose(zh, en) { return currentLang === 'zh' ? zh : en; }
+function appTitleText() { return appVersion ? `${TEXT.appName()} v${appVersion}` : TEXT.appName(); }
+function setText(id, value) {
+  const el = document.getElementById(id);
+  if (el) el.textContent = value;
+}
+function setTitle(id, value) {
+  const el = document.getElementById(id);
+  if (el) el.title = value;
+}
+function setAppVersion(v) {
+  appVersion = v || '';
+  document.title = appTitleText();
+  setText('appTitle', appTitleText());
+}
+function applyStaticI18n() {
+  document.documentElement.lang = currentLang === 'zh' ? 'zh-Hans' : 'en';
+  document.title = appTitleText();
+  setText('appTitle', appTitleText());
+  setText('axTitle', choose('需要辅助功能权限', 'Accessibility permission required'));
+  setText('axButton', choose('打开设置', 'Open Settings'));
+  setText('axSubtitle', choose('授权后需重启App', 'Restart the app after granting permission'));
+  setText('closeHint', TEXT.closeHint());
+  setText('langBtn', currentLang === 'zh' ? 'EN' : '中');
+  setTitle('langBtn', choose('Switch to English', '切换到中文'));
+}
+function toggleLanguage() {
+  currentLang = currentLang === 'zh' ? 'en' : 'zh';
+  localStorage.setItem(LANG_KEY, currentLang);
+  applyStaticI18n();
+  if (typeof modalOpen !== 'undefined' && modalOpen && typeof openModal === 'function' && activeModalType) {
+    openModal(activeModalType);
+  }
+}
+applyStaticI18n();
+
 // Inject app version from Tauri at startup (avoid hardcoded version drift)
 (async () => {
   try {
     const v = await window.__TAURI__.app.getVersion();
-    document.title = "邦德猫 v" + v;
-    const el = document.getElementById("appTitle");
-    if (el) el.textContent = "邦德猫 v" + v;
+    setAppVersion(v);
   } catch (e) { console.warn("version inject failed", e); }
 })();
 </script>
@@ -233,6 +399,36 @@ const RARITY = [
   { name: '史诗', color: '#bb44ff', affixCount: 3 },
   { name: '传说', color: '#ff8800', affixCount: 4 },
 ];
+const SLOT_LABELS = {
+  zh: { head: '🎩头', body: '🧥身', weapon: '⚔️武', accessory: '💍饰' },
+  en: { head: '🎩Head', body: '🧥Body', weapon: '⚔️Weapon', accessory: '💍Charm' },
+};
+const STAT_LABELS = {
+  zh: { atk: '攻', crit: '暴击', critShort: '暴', hp: 'HP', lifesteal: '吸血', gold: '金币', weapon: '武器', pet: '宠物', bonus: '加成' },
+  en: { atk: 'ATK', crit: 'Crit', critShort: 'Crit', hp: 'HP', lifesteal: 'Leech', gold: 'Gold', weapon: 'Weapon', pet: 'Pet', bonus: 'Bonus' },
+};
+function slotLabel(slot) { return SLOT_LABELS[currentLang][slot] || slot; }
+function statLabel(key) { return STAT_LABELS[currentLang][key] || key; }
+function itemName(it) { return tx(it && it.name); }
+function rarityName(idx) { return tx(RARITY[idx] && RARITY[idx].name); }
+function petTypeName(petType) { return tx(petType && petType.name); }
+function outfitName(outfit) { return tx(outfit && outfit.name); }
+function className(cls) { return tx(cls && cls.name); }
+function chapterName(chapter) { return tx(chapter && chapter.name); }
+function monsterName(monsterType) { return tx(monsterType && monsterType.name); }
+function affixLabel(key, fallback) {
+  const byKey = {
+    critBonus: choose('+暴击', '+Crit'),
+    atkBonus: choose('+攻', '+ATK'),
+    hpBonus: '+HP',
+    lifesteal: choose('+吸血', '+Lifesteal'),
+    gold: choose('+金币', '+Gold'),
+  };
+  return byKey[key] || tx(fallback);
+}
+function itemRarityAndName(item) {
+  return `${rarityName(item.rarityIdx)} ${itemName(item)}`;
+}
 function genItem(slot, forcedRarity) {
   const pool = GEAR_BASES[slot];
   const base = pool[Math.floor(Math.random() * pool.length)];
@@ -313,7 +509,7 @@ function upgradeItem(id) {
   state.gold -= cost;
   it.upgradeLevel++;
   if (found.loc === 'equipped') recomputeMaxHp();
-  floatTexts.push({ x: 200, y: 40, text: '+1 ' + it.name + ' Lv' + it.upgradeLevel, color: '#ffd700', life: 1.2 });
+  floatTexts.push({ x: 200, y: 40, text: '+1 ' + itemName(it) + ' Lv' + it.upgradeLevel, color: '#ffd700', life: 1.2 });
   saveState();
   if (modalOpen) openModal('backpack');
 }
@@ -323,7 +519,7 @@ function sellItem(id) {
   const price = sellPrice(found.item);
   state.gold += price;
   state.inventory.splice(found.idx, 1);
-  floatTexts.push({ x: 200, y: 40, text: '+' + price + '💰 (卖)', color: '#ffd700', life: 1.0 });
+  floatTexts.push({ x: 200, y: 40, text: '+' + price + '💰 ' + choose('(卖)', '(Sold)'), color: '#ffd700', life: 1.0 });
   saveState();
   if (modalOpen) openModal('backpack');
 }
@@ -343,7 +539,7 @@ function mergeAll() {
       if (g.count >= 3) { mergeSlotRarity(g.slot, g.rarityIdx); total++; }
     }
   }
-  floatTexts.push({ x: 200, y: 30, text: 'X ' + total + ' 次合成', color: '#ffb040', life: 2.0 });
+  floatTexts.push({ x: 200, y: 30, text: choose('X ' + total + ' 次合成', 'Merged x' + total), color: '#ffb040', life: 2.0 });
   saveState();
   if (modalOpen) openModal('backpack');
 }
@@ -357,7 +553,7 @@ function mergeSlotRarity(slot, rarityIdx) {
   state.inventory = state.inventory.filter(it => !ids.includes(it.id));
   const newItem = genItem(slot, rarityIdx + 1);
   state.inventory.push(newItem);
-  floatTexts.push({ x: 200, y: 30, text: '合成成功! ' + RARITY[rarityIdx+1].name + newItem.name, color: RARITY[rarityIdx+1].color, life: 2.0 });
+  floatTexts.push({ x: 200, y: 30, text: choose('合成成功! ', 'Merged! ') + itemRarityAndName(newItem), color: RARITY[rarityIdx+1].color, life: 2.0 });
   saveState();
   if (modalOpen) openModal('backpack');
 }
@@ -375,7 +571,7 @@ function hatchEgg() {
   state.pendingEggs--;
   const petT = _rollPetType();
   state.pets.push({ id: state.nextItemId++, typeId: petT.id });
-  floatTexts.push({ x: 200, y: 30, text: '🐾 孵出 ' + petT.name + '!', color: petT.color, life: 2.5 });
+  floatTexts.push({ x: 200, y: 30, text: choose('🐾 孵出 ', '🐾 Hatched ') + petTypeName(petT) + '!', color: petT.color, life: 2.5 });
   saveState();
   if (modalOpen) openModal('backpack');
 }
@@ -396,7 +592,7 @@ function mergePet(typeId) {
   state.pets = state.pets.filter(p => !removedIds.has(p.id));
   const next = PET_TYPES[idx + 1];
   state.pets.push({ id: state.nextItemId++, typeId: next.id });
-  floatTexts.push({ x: 200, y: 30, text: '🐾 合成! ' + next.name, color: next.color, life: 2.5 });
+  floatTexts.push({ x: 200, y: 30, text: choose('🐾 合成! ', '🐾 Merged! ') + petTypeName(next), color: next.color, life: 2.5 });
   saveState();
   if (modalOpen) openModal('backpack');
 }
@@ -413,7 +609,7 @@ function hatchAllEggs() {
   let y = 20;
   for (const k of Object.keys(tally)) {
     const t = PET_TYPES.find(x => x.id === k);
-    floatTexts.push({ x: 200, y, text: '🐾 ' + t.name + ' x' + tally[k], color: t.color, life: 2.5 });
+    floatTexts.push({ x: 200, y, text: '🐾 ' + petTypeName(t) + ' x' + tally[k], color: t.color, life: 2.5 });
     y += 14;
   }
   saveState();
@@ -443,7 +639,7 @@ function rerollItem(id) {
   const it = found.item;
   const r = RARITY[it.rarityIdx];
   if (r.affixCount === 0) {
-    floatTexts.push({ x: 200, y: 40, text: '普通装备无词缀', color: '#888', life: 1.2 });
+    floatTexts.push({ x: 200, y: 40, text: choose('普通装备无词缀', 'Normal gear has no affixes'), color: '#888', life: 1.2 });
     return;
   }
   const cost = rerollCost(it);
@@ -458,17 +654,17 @@ function rerollItem(id) {
     affixes.push({ key: a.key, label: a.label, value: a.roll() });
   }
   it.affixes = affixes;
-  floatTexts.push({ x: 200, y: 40, text: '♻ 重铸完成', color: r.color, life: 1.5 });
+  floatTexts.push({ x: 200, y: 40, text: choose('♻ 重铸完成', '♻ Rerolled'), color: r.color, life: 1.5 });
   saveState();
   if (modalOpen) openModal('backpack');
 }
 function itemStatSummary(it) {
   const parts = [];
-  const d = itemTotalDmg(it); if (d > 0) parts.push('攻+' + d);
+  const d = itemTotalDmg(it); if (d > 0) parts.push(statLabel('atk') + '+' + d);
   const hp = itemTotalHp(it); if (hp > 0) parts.push('HP+' + Math.floor(hp));
   for (const a of it.affixes) {
     if (a.key === 'atkBonus' || a.key === 'hpBonus') continue;
-    parts.push(a.label + a.value + (['critBonus','lifesteal','gold'].includes(a.key) ? '%' : ''));
+    parts.push(affixLabel(a.key, a.label) + a.value + (['critBonus','lifesteal','gold'].includes(a.key) ? '%' : ''));
   }
   return parts.join(' ');
 }
@@ -513,9 +709,10 @@ const TAUNTS = {
 function sayTaunt(key) {
   const arr = TAUNTS[key]; if (!arr || !arr.length) return;
   const line = arr[Math.floor(Math.random() * arr.length)];
-  floatTexts.push({ x: 120, y: 40, text: '💬 ' + line, color: '#ffd9b0', life: 3.0 });
+  floatTexts.push({ x: 120, y: 40, text: '💬 ' + tx(line), color: '#ffd9b0', life: 3.0 });
 }
 let modalOpen = false;
+let activeModalType = null;
 let stars = [];
 
 for (let i = 0; i < 40; i++) {
@@ -610,11 +807,11 @@ function spawnMonster() {
     chapterBoss: isChapterBoss,
   });
   if (t.isBoss) {
-    const warnText = isChapterBoss ? '★ 章节 BOSS 降临!' : '⚠ BOSS 来袭!';
+    const warnText = isChapterBoss ? choose('★ 章节 BOSS 降临!', '★ Chapter Boss Arrives!') : choose('⚠ BOSS 来袭!', '⚠ Boss Incoming!');
     const warnColor = isChapterBoss ? '#ffd700' : '#ff4040';
     floatTexts.push({ x: 250, y: 30, text: warnText, color: warnColor, life: 2.5 });
   } else if (isElite) {
-    floatTexts.push({ x: 250, y: 30, text: '✨ 精英怪!', color: '#ffd700', life: 1.5 });
+    floatTexts.push({ x: 250, y: 30, text: choose('✨ 精英怪!', '✨ Elite!'), color: '#ffd700', life: 1.5 });
   }
 }
 
@@ -741,7 +938,7 @@ function killMonster(m) {
     if (state.level % 10 === 0) {
       state.chapterBossPending = 1;
       const nextCh = CHAPTERS[Math.floor(state.level / 10) % CHAPTERS.length];
-      floatTexts.push({ x: 250, y: 25, text: '★ 进入 ' + nextCh.name, color: '#ffd700', life: 2.5 });
+      floatTexts.push({ x: 250, y: 25, text: choose('★ 进入 ', '★ Enter ') + chapterName(nextCh), color: '#ffd700', life: 2.5 });
     }
   }
   // particles (boss = big explosion)
@@ -759,14 +956,14 @@ function killMonster(m) {
     });
   }
   if (t.isBoss) {
-    floatTexts.push({ x: 250, y: 40, text: '💥 BOSS 已斩!', color: '#ffff40', life: 2.0 });
+    floatTexts.push({ x: 250, y: 40, text: choose('💥 BOSS 已斩!', '💥 Boss Defeated!'), color: '#ffff40', life: 2.0 });
     if (!state.firstBossDone) { state.firstBossDone = true; sayTaunt('firstBoss'); }
   }
   // 宠物蛋掉落 (boss 20%, 其他 5%)
   const eggChance = t.isBoss ? 0.20 : 0.05;
   if (Math.random() < eggChance) {
     state.pendingEggs++;
-    floatTexts.push({ x: m.x, y: m.y - 15, text: '🥚 +1 蛋', color: '#ffeedd', life: 1.8 });
+    floatTexts.push({ x: m.x, y: m.y - 15, text: choose('🥚 +1 蛋', '🥚 +1 Egg'), color: '#ffeedd', life: 1.8 });
   }
   // chest drop 80%
   if (Math.random() < 0.7) {
@@ -787,7 +984,7 @@ function killMonster(m) {
     for (let i = 0; i < weights.length; i++) { rr -= weights[i]; if (rr <= 0) { rIdx = i; break; } }
     const item = genItem(slot, rIdx);
     state.inventory.push(item);
-    floatTexts.push({ x: m.x, y: m.y - 10, text: '📦 ' + RARITY[rIdx].name + item.name, color: RARITY[rIdx].color, life: 1.8 });
+    floatTexts.push({ x: m.x, y: m.y - 10, text: '📦 ' + itemRarityAndName(item), color: RARITY[rIdx].color, life: 1.8 });
     if (rIdx >= RARITY.length - 1) sayTaunt('legendary');
   }
   saveState();
@@ -827,7 +1024,7 @@ function compareItem(it) {
   const parts = [];
   const dmgA = itemTotalDmg(cur), dmgB = itemTotalDmg(it);
   const hpA = itemTotalHp(cur), hpB = itemTotalHp(it);
-  if (dmgB !== dmgA) parts.push({ k: '攻', d: +(dmgB - dmgA).toFixed(1) });
+  if (dmgB !== dmgA) parts.push({ k: statLabel('atk'), d: +(dmgB - dmgA).toFixed(1) });
   if (hpB !== hpA) parts.push({ k: 'HP', d: Math.floor(hpB - hpA) });
   // Affix diff
   const affixKeys = ['critBonus', 'lifesteal', 'gold'];
@@ -835,7 +1032,7 @@ function compareItem(it) {
     const va = cur.affixes.filter(a => a.key === ak).reduce((s, a) => s + a.value, 0);
     const vb = it.affixes.filter(a => a.key === ak).reduce((s, a) => s + a.value, 0);
     if (va !== vb) {
-      const label = { critBonus: '暴击', lifesteal: '吸血', gold: '金币' }[ak];
+      const label = { critBonus: statLabel('crit'), lifesteal: statLabel('lifesteal'), gold: statLabel('gold') }[ak];
       parts.push({ k: label, d: vb - va, pct: true });
     }
   }
@@ -862,32 +1059,33 @@ function pickClass(id) {
   state.catHp = newMax;
   saveState();
   closeModal();
-  floatTexts.push({ x: 250, y: 30, text: '选择 ' + cls.icon + cls.name, color: cls.color, life: 2.5 });
+  floatTexts.push({ x: 250, y: 30, text: choose('选择 ', 'Selected ') + cls.icon + className(cls), color: cls.color, life: 2.5 });
 }
 
 function openModal(type) {
   modalOpen = true;
+  activeModalType = type;
   const el = document.getElementById('modal');
   const content = document.getElementById('modalContent');
   el.classList.add('open');
   if (type === 'class') {
-    let html = '<h3>选择你的职业</h3><div style="font-size:10px;color:#aaa;text-align:center;margin-bottom:8px">首次进入不可取消; 影响基础属性</div>';
+    let html = `<h3>${choose('选择你的职业', 'Choose Your Class')}</h3><div style="font-size:10px;color:#aaa;text-align:center;margin-bottom:8px">${choose('首次进入不可取消; 影响基础属性', 'Required on first launch; affects base stats')}</div>`;
     for (const k of Object.keys(CLASSES)) {
       const c = CLASSES[k];
-      html += `<div class="row"><span><b style="color:${c.color}">${c.icon} ${c.name}</b><br><span style="font-size:9px;color:#aaa">${c.desc}</span></span><button onclick="pickClass('${k}')">选</button></div>`;
+      html += `<div class="row"><span><b style="color:${c.color}">${c.icon} ${className(c)}</b><br><span style="font-size:9px;color:#aaa">${tx(c.desc)}</span></span><button onclick="pickClass('${k}')">${choose('选', 'Pick')}</button></div>`;
     }
     content.innerHTML = html;
     return;
   }
   if (type === 'backpack') {
     let totalC = state.chests[0] + state.chests[1] + state.chests[2];
-    let html = '<h3>🎒 装备 (金币 ' + state.gold + ')</h3>';
+    let html = `<h3>🎒 ${choose('装备', 'Gear')} (${choose('金币', 'Gold')} ${state.gold})</h3>`;
     // 宠物区
     if (state.pendingEggs > 0 || state.pets.length > 0) {
-      html += '<div style="font-size:9px;color:#ffeedd;margin:3px 0">🐾 宠物 (+' + totalPetAtkBonus() + ' 攻, +' + (totalPetCritBonus()*100).toFixed(0) + '% 暴)</div>';
+      html += `<div style="font-size:9px;color:#ffeedd;margin:3px 0">🐾 ${choose('宠物', 'Pets')} (+${totalPetAtkBonus()} ${statLabel('atk')}, +${(totalPetCritBonus()*100).toFixed(0)}% ${statLabel('critShort')})</div>`;
       if (state.pendingEggs > 0) {
-        const hatchAllBtn = state.pendingEggs >= 2 ? `<button onclick="hatchAllEggs()" style="margin-left:3px">全孵</button>` : '';
-        html += `<div class="row"><span>🥚 ${state.pendingEggs} 枚未孵化蛋</span><span><button onclick="hatchEgg()">孵化</button>${hatchAllBtn}</span></div>`;
+        const hatchAllBtn = state.pendingEggs >= 2 ? `<button onclick="hatchAllEggs()" style="margin-left:3px">${choose('全孵', 'Hatch All')}</button>` : '';
+        html += `<div class="row"><span>🥚 ${choose(state.pendingEggs + ' 枚未孵化蛋', state.pendingEggs + ' unhatched eggs')}</span><span><button onclick="hatchEgg()">${choose('孵化', 'Hatch')}</button>${hatchAllBtn}</span></div>`;
       }
       if (state.pets.length > 0) {
         const grouped = {};
@@ -901,24 +1099,23 @@ function openModal(type) {
           const atkSum = c * t.atkBonus;
           const critSum = (c * t.critBonus * 100).toFixed(0);
           const canMerge = c >= 3 && _ti < _lastIdx;
-          const mergeBtn = canMerge ? `<button onclick="mergePet('${t.id}')" style="font-size:8px;padding:1px 3px;margin-left:2px" title="3合1 → ${PET_TYPES[_ti+1].name}">合</button>` : '';
-          gridHtml += `<div style="display:flex;align-items:center;gap:2px;padding:2px 4px;border:1px solid ${t.color};border-radius:3px;font-size:9px" title="${t.name} x${c} (+${atkSum}攻, +${critSum}%暴)"><img src="assets/${t.img}.png" style="width:14px;height:14px;image-rendering:pixelated"><span style="color:${t.color}">x${c}</span>${mergeBtn}</div>`;
+          const mergeBtn = canMerge ? `<button onclick="mergePet('${t.id}')" style="font-size:8px;padding:1px 3px;margin-left:2px" title="${choose('3合1', '3 to 1')} → ${petTypeName(PET_TYPES[_ti+1])}">${choose('合', 'M')}</button>` : '';
+          gridHtml += `<div style="display:flex;align-items:center;gap:2px;padding:2px 4px;border:1px solid ${t.color};border-radius:3px;font-size:9px" title="${petTypeName(t)} x${c} (+${atkSum}${statLabel('atk')}, +${critSum}%${statLabel('critShort')})"><img src="assets/${t.img}.png" style="width:14px;height:14px;image-rendering:pixelated"><span style="color:${t.color}">x${c}</span>${mergeBtn}</div>`;
         }
         gridHtml += '</div>';
         html += gridHtml;
       }
     }
     // Equipped row
-    const slotLabels = { head: '🎩头', body: '🧥身', weapon: '⚔️武', accessory: '💍饰' };
     html += '<div style="display:flex;gap:3px;margin-bottom:4px;font-size:10px">';
     for (const sk of ['head','body','weapon','accessory']) {
       const it = state.equipment[sk];
       if (it) {
         const rc = RARITY[it.rarityIdx].color;
         const upg = it.upgradeLevel > 0 ? '+' + it.upgradeLevel : '';
-        html += `<div style="flex:1;padding:3px;border:1px solid ${rc};border-radius:3px;cursor:pointer" onclick="unequipItem('${sk}')" title="卸下"><span style="color:${rc}">${slotLabels[sk]}</span> ${it.name}${upg}</div>`;
+        html += `<div style="flex:1;padding:3px;border:1px solid ${rc};border-radius:3px;cursor:pointer" onclick="unequipItem('${sk}')" title="${choose('卸下', 'Unequip')}"><span style="color:${rc}">${slotLabel(sk)}</span> ${itemName(it)}${upg}</div>`;
       } else {
-        html += `<div style="flex:1;padding:3px;border:1px dashed #333;border-radius:3px;color:#555">${slotLabels[sk]} —</div>`;
+        html += `<div style="flex:1;padding:3px;border:1px dashed #333;border-radius:3px;color:#555">${slotLabel(sk)} —</div>`;
       }
     }
     html += '</div>';
@@ -932,16 +1129,16 @@ function openModal(type) {
       }
       const mergeable = Object.values(groups).filter(g => g.count >= 3 && g.rarityIdx < RARITY.length - 1);
       if (mergeable.length > 0) {
-        html += `<div style="display:flex;align-items:center;justify-content:space-between;margin:3px 0;padding:3px 6px;background:#2a2015;border-radius:4px"><span style="font-size:10px;color:#ffd700">X ${mergeable.length} 组可合成</span><button onclick="mergeAll()" style="background:#ff9030;font-weight:bold">一键全合</button></div>`;
+        html += `<div style="display:flex;align-items:center;justify-content:space-between;margin:3px 0;padding:3px 6px;background:#2a2015;border-radius:4px"><span style="font-size:10px;color:#ffd700">${choose('X ' + mergeable.length + ' 组可合成', mergeable.length + ' merge sets')}</span><button onclick="mergeAll()" style="background:#ff9030;font-weight:bold">${choose('一键全合', 'Merge All')}</button></div>`;
       }
     }
     // Chest quick-open
     if (totalC > 0) {
-      html += `<div style="text-align:center;margin:4px 0"><button onclick="openAllChests()">🗝️ 开箱 (${totalC})</button></div>`;
+      html += `<div style="text-align:center;margin:4px 0"><button onclick="openAllChests()">🗝️ ${choose('开箱', 'Open Chests')} (${totalC})</button></div>`;
     }
     // Inventory list
     if (state.inventory.length === 0) {
-      html += '<div style="color:#666;font-size:10px;text-align:center;margin-top:6px">背包空 — 击杀怪物掉落装备</div>';
+      html += `<div style="color:#666;font-size:10px;text-align:center;margin-top:6px">${choose('背包空 — 击杀怪物掉落装备', 'Backpack empty. Defeat monsters to find gear.')}</div>`;
     } else {
       // Sort by rarity desc
       const sorted = state.inventory.slice().sort((a,b) => { const ca = compareItem(a).totalDelta; const cb = compareItem(b).totalDelta; if (ca !== cb) return cb - ca; return b.rarityIdx - a.rarityIdx; });
@@ -953,47 +1150,47 @@ function openModal(type) {
         const cmp = compareItem(it);
         const cmpHtml = renderCompareHtml(cmp);
         html += `<div class="row" style="border-left:3px solid ${rc};padding-left:6px">
-          <span><b style="color:${rc}">${slotLabels[it.slot]} ${it.name}${upg}</b>${cmpHtml}<br><span style="font-size:9px;color:#aaa">${stats}</span></span>
+          <span><b style="color:${rc}">${slotLabel(it.slot)} ${itemName(it)}${upg}</b>${cmpHtml}<br><span style="font-size:9px;color:#aaa">${stats}</span></span>
           <span style="display:flex;flex-direction:column;gap:1px">
-            <button style="font-size:9px;padding:1px 5px" onclick="equipItem(${it.id})">装</button>
-            <button style="font-size:9px;padding:1px 5px" onclick="upgradeItem(${it.id})" title="升级">⬆${upCost}</button>
-            <button style="font-size:9px;padding:1px 5px;background:#6a4" onclick="rerollItem(${it.id})" title="重铸词缀">♻${rerollCost(it)}💰</button>
-            <button style="font-size:9px;padding:1px 5px;background:#888" onclick="sellItem(${it.id})">卖${sellPrice(it)}💰</button>
+            <button style="font-size:9px;padding:1px 5px" onclick="equipItem(${it.id})">${choose('装', 'Equip')}</button>
+            <button style="font-size:9px;padding:1px 5px" onclick="upgradeItem(${it.id})" title="${choose('升级', 'Upgrade')}">⬆${upCost}</button>
+            <button style="font-size:9px;padding:1px 5px;background:#6a4" onclick="rerollItem(${it.id})" title="${choose('重铸词缀', 'Reroll affixes')}">♻${rerollCost(it)}💰</button>
+            <button style="font-size:9px;padding:1px 5px;background:#888" onclick="sellItem(${it.id})">${choose('卖', 'Sell')} ${sellPrice(it)}💰</button>
           </span>
         </div>`;
       }
     }
     content.innerHTML = html;
   } else if (type === 'prestige') {
-    let html = '<h3>★ 转生殿堂</h3>';
-    html += '<div style="font-size:10px;color:#aaa;margin-bottom:4px">Lv50+ 可转生, 重置等级保留 50% 金币, 获得灵魂点 (永久加成)</div>';
-    html += '<div style="font-size:10px;color:#ffd700;margin:4px 0">灵魂点: ' + state.soul + ' | 转生次数: ' + state.prestigeCount + '</div>';
+    let html = `<h3>★ ${choose('转生殿堂', 'Prestige Hall')}</h3>`;
+    html += `<div style="font-size:10px;color:#aaa;margin-bottom:4px">${choose('Lv50+ 可转生, 重置等级保留 50% 金币, 获得灵魂点 (永久加成)', 'Prestige at Lv50+. Level resets, 50% gold stays, soul points grant permanent bonuses.')}</div>`;
+    html += `<div style="font-size:10px;color:#ffd700;margin:4px 0">${choose('灵魂点', 'Soul')}: ${state.soul} | ${choose('转生次数', 'Prestige')}: ${state.prestigeCount}</div>`;
     if (canPrestige()) {
-      html += `<div class="row" style="background:#2a1a2e;padding:4px;border-radius:4px"><span><b style="color:#ffd700">★ 立即转生</b><br><span style="font-size:9px;color:#aaa">获得 +${prestigeGain()} 灵魂点</span></span><button onclick="doPrestige()" style="background:#bb44ff">转生</button></div>`;
+      html += `<div class="row" style="background:#2a1a2e;padding:4px;border-radius:4px"><span><b style="color:#ffd700">★ ${choose('立即转生', 'Prestige Now')}</b><br><span style="font-size:9px;color:#aaa">${choose('获得', 'Gain')} +${prestigeGain()} ${choose('灵魂点', 'soul')}</span></span><button onclick="doPrestige()" style="background:#bb44ff">${choose('转生', 'Prestige')}</button></div>`;
     } else {
-      html += `<div style="font-size:10px;color:#888;margin:4px 0">距离转生: Lv${state.level} / Lv50</div>`;
+      html += `<div style="font-size:10px;color:#888;margin:4px 0">${choose('距离转生', 'Prestige progress')}: Lv${state.level} / Lv50</div>`;
     }
-    html += '<div style="font-size:10px;color:#888;margin:6px 0 2px 0">永久加成 (花灵魂点):</div>';
+    html += `<div style="font-size:10px;color:#888;margin:6px 0 2px 0">${choose('永久加成 (花灵魂点):', 'Permanent bonuses (spend soul):')}</div>`;
     for (const def of PRESTIGE_BUFFS) {
       const cur = state.prestigeBuffs[def.key] || 0;
       const affordable = state.soul >= def.costPer;
       const maxed = cur >= def.maxLv;
-      let btn = maxed ? '<button class="owned">满</button>' : `<button onclick="buyPrestigeBuff('${def.key}')" ${affordable?'':'style="background:#555;color:#999"'}>${def.costPer}魂</button>`;
-      html += `<div class="row"><span><b>${def.name}</b> Lv${cur}/${def.maxLv}<br><span style="font-size:9px;color:#aaa">${def.desc}</span></span>${btn}</div>`;
+      let btn = maxed ? `<button class="owned">${choose('满', 'Max')}</button>` : `<button onclick="buyPrestigeBuff('${def.key}')" ${affordable?'':'style="background:#555;color:#999"'}>${def.costPer}${choose('魂', ' Soul')}</button>`;
+      html += `<div class="row"><span><b>${tx(def.name)}</b> Lv${cur}/${def.maxLv}<br><span style="font-size:9px;color:#aaa">${tx(def.desc)}</span></span>${btn}</div>`;
     }
     content.innerHTML = html;
     return;
   } else if (type === 'shop') {
-    let html = '<h3>🛒 商城 (💰 ' + state.gold + ')</h3>';
-    html += '<div style="font-size:10px;color:#aaa;margin:2px 0">🎨 猫咪装扮 — 解锁后点预览图切换</div>';
+    let html = `<h3>🛒 ${choose('商城', 'Shop')} (💰 ${state.gold})</h3>`;
+    html += `<div style="font-size:10px;color:#aaa;margin:2px 0">🎨 ${choose('猫咪装扮 — 解锁后点预览图切换', 'Cat outfits. Unlock, then click to switch.')}</div>`;
     for (let i = 0; i < OUTFITS.length; i++) {
       const o = OUTFITS[i];
       const owned = state.outfitOwned[i];
       const equipped = state.outfit === i;
-      const bonusTxt = o.bonus ? o.bonus.desc : '（无加成）';
+      const bonusTxt = o.bonus ? tx(o.bonus.desc) : choose('（无加成）', 'No bonus');
       let btn = '';
-      if (equipped) btn = '<button class="equipped">穿着中</button>';
-      else if (owned) btn = `<button onclick="equipOutfit(${i})">穿上</button>`;
+      if (equipped) btn = `<button class="equipped">${choose('穿着中', 'Equipped')}</button>`;
+      else if (owned) btn = `<button onclick="equipOutfit(${i})">${choose('穿上', 'Wear')}</button>`;
       else {
         const affordable = state.gold >= o.cost;
         btn = `<button onclick="buyOutfit(${i})" ${affordable?'':'style="background:#555;color:#999"'}>${o.cost}💰</button>`;
@@ -1002,31 +1199,31 @@ function openModal(type) {
       html += `<div class="row" style="border-left:3px solid ${o.color};padding-left:6px">
         <span style="display:flex;align-items:center;gap:6px">
           <img src="${imgSrc}" style="width:28px;height:28px;image-rendering:pixelated"/>
-          <span><b style="color:${o.color}">${o.name}</b><br><span style="font-size:9px;color:#aaa">${bonusTxt}</span></span>
+          <span><b style="color:${o.color}">${outfitName(o)}</b><br><span style="font-size:9px;color:#aaa">${bonusTxt}</span></span>
         </span>${btn}</div>`;
     }
     content.innerHTML = html;
   } else if (type === 'paperdoll') {
     const _cls = currentClass();
-    const clsLabel = _cls ? `${_cls.icon} ${_cls.name}` : '未选择';
+    const clsLabel = _cls ? `${_cls.icon} ${className(_cls)}` : choose('未选择', 'Not chosen');
     const skin = OUTFITS[state.outfit];
     const wepDmg = sumEquipStat(itemTotalDmg);
     const totalHp = state.catMaxHp;
     const critFromGear = sumEquipStat(it => (it ? it.affixes.filter(a=>a.key==='critBonus').reduce((s,a)=>s+a.value*0.01,0) : 0));
     const critRate = 0.05 + (state.skills.luck * 0.02) + critFromGear + (_cls ? _cls.critRateAdd : 0) + ((skin && skin.bonus && skin.bonus.key === 'critRateAdd') ? skin.bonus.value : 0) + totalPetCritBonus() + (state.prestigeBuffs.critStart || 0) * 0.01;
-    let html = '<h3>👤 角色面板</h3>';
-    html += `<div class="row"><span>职业</span><span style="color:${_cls?_cls.color:'#888'}">${clsLabel}</span></div>`;
-    html += `<div class="row"><span>等级 / 经验</span><span>Lv ${state.level} (${state.xp}/${state.level * 15})</span></div>`;
-    html += `<div class="row"><span>章节</span><span>${currentChapter().name}</span></div>`;
+    let html = `<h3>👤 ${choose('角色面板', 'Character')}</h3>`;
+    html += `<div class="row"><span>${choose('职业', 'Class')}</span><span style="color:${_cls?_cls.color:'#888'}">${clsLabel}</span></div>`;
+    html += `<div class="row"><span>${choose('等级 / 经验', 'Level / XP')}</span><span>Lv ${state.level} (${state.xp}/${state.level * 15})</span></div>`;
+    html += `<div class="row"><span>${choose('章节', 'Chapter')}</span><span>${chapterName(currentChapter())}</span></div>`;
     html += `<div class="row"><span>HP</span><span>${state.catHp} / ${totalHp}</span></div>`;
-    html += `<div class="row"><span>攻击</span><span>武器 ${wepDmg} + 宠物 ${totalPetAtkBonus()} + 加成 ${Math.floor(state.level*0.5)}</span></div>`;
-    html += `<div class="row"><span>暴击率</span><span>${(critRate*100).toFixed(1)}%</span></div>`;
-    html += `<div class="row"><span>最高连击</span><span>${state.maxCombo}</span></div>`;
-    html += `<div class="row"><span>Boss 击杀</span><span>${state.bossKills}</span></div>`;
-    html += `<div class="row"><span>转生</span><span>${state.prestigeCount} 次 · 灵魂 ${state.soul}</span></div>`;
+    html += `<div class="row"><span>${statLabel('atk')}</span><span>${statLabel('weapon')} ${wepDmg} + ${statLabel('pet')} ${totalPetAtkBonus()} + ${statLabel('bonus')} ${Math.floor(state.level*0.5)}</span></div>`;
+    html += `<div class="row"><span>${choose('暴击率', 'Crit Rate')}</span><span>${(critRate*100).toFixed(1)}%</span></div>`;
+    html += `<div class="row"><span>${choose('最高连击', 'Best Combo')}</span><span>${state.maxCombo}</span></div>`;
+    html += `<div class="row"><span>${choose('Boss 击杀', 'Boss Kills')}</span><span>${state.bossKills}</span></div>`;
+    html += `<div class="row"><span>${choose('转生', 'Prestige')}</span><span>${state.prestigeCount} ${choose('次', 'times')} · ${choose('灵魂', 'Soul')} ${state.soul}</span></div>`;
     content.innerHTML = html;
   } else if (type === 'skills') {
-    let html = '<h3>🌟 技能树 (金币 ' + state.gold + ')</h3>';
+    let html = `<h3>🌟 ${choose('技能树', 'Skills')} (${choose('金币', 'Gold')} ${state.gold})</h3>`;
     const skillDefs = [
       { key: 'attack',   name: '强化攻击', desc: '+10% 攻击/级' },
       { key: 'vitality', name: '生命强化', desc: '+20 最大HP/级' },
@@ -1038,17 +1235,17 @@ function openModal(type) {
       const cost = skillCost(cur);
       const maxed = cur >= 10;
       const affordable = state.gold >= cost;
-      let btn = maxed ? '<button class="owned">满</button>' : `<button onclick="buySkill('${def.key}')" ${affordable?'':'style="background:#555;color:#999"'}>${cost}💰</button>`;
-      html += `<div class="row"><span><b>${def.name}</b> Lv${cur}/10<br><span style="font-size:9px;color:#aaa">${def.desc}</span></span>${btn}</div>`;
+      let btn = maxed ? `<button class="owned">${choose('满', 'Max')}</button>` : `<button onclick="buySkill('${def.key}')" ${affordable?'':'style="background:#555;color:#999"'}>${cost}💰</button>`;
+      html += `<div class="row"><span><b>${tx(def.name)}</b> Lv${cur}/10<br><span style="font-size:9px;color:#aaa">${tx(def.desc)}</span></span>${btn}</div>`;
     }
     content.innerHTML = html;
   } else if (type === 'achievements') {
-    let html = '<h3>🏆 成就</h3>';
+    let html = `<h3>🏆 ${choose('成就', 'Achievements')}</h3>`;
     for (const a of ACHIEVEMENTS) {
       const done = state.achievements.includes(a.id);
       const icon = done ? '✅' : '⬜';
       const color = done ? '#44dd44' : '#888';
-      html += `<div class="row"><span><span style="color:${color}">${icon} <b>${a.name}</b></span> — <span style="font-size:9px;color:#aaa">${a.desc}</span></span><span style="font-size:9px;color:#ffd700">+${a.reward}💰</span></div>`;
+      html += `<div class="row"><span><span style="color:${color}">${icon} <b>${tx(a.name)}</b></span> — <span style="font-size:9px;color:#aaa">${tx(a.desc)}</span></span><span style="font-size:9px;color:#ffd700">+${a.reward}💰</span></div>`;
     }
     content.innerHTML = html;
   }
@@ -1074,7 +1271,7 @@ function checkAchievements() {
     if (a.check(state)) {
       state.achievements.push(a.id);
       state.gold += a.reward;
-      floatTexts.push({ x: 250, y: 30, text: '🏆 ' + a.name, color: '#ffd700', life: 2.5 });
+      floatTexts.push({ x: 250, y: 30, text: '🏆 ' + tx(a.name), color: '#ffd700', life: 2.5 });
       floatTexts.push({ x: 250, y: 50, text: '+' + a.reward + '💰', color: '#ffd700', life: 2.5 });
       for (let i = 0; i < 30; i++) {
         particles.push({
@@ -1104,7 +1301,7 @@ function buySkill(key) {
   openModal('skills');
 }
 
-function closeModal() { modalOpen = false; document.getElementById('modal').classList.remove('open'); }
+function closeModal() { modalOpen = false; activeModalType = null; document.getElementById('modal').classList.remove('open'); }
 
 function openAllChests() {
   let totalGold = 0;
@@ -1184,7 +1381,7 @@ function doPrestige() {
   // 应用 prestigeBuffs 到初始状态
   applyPrestigeStart();
   saveState();
-  floatTexts.push({ x: 200, y: 30, text: '★ 转生 +' + gain + ' 灵魂', color: '#ffd700', life: 3.0 });
+  floatTexts.push({ x: 200, y: 30, text: choose('★ 转生 +', '★ Prestige +') + gain + ' ' + choose('灵魂', 'Soul'), color: '#ffd700', life: 3.0 });
   sayTaunt('prestige');
   closeModal();
 }
@@ -1641,7 +1838,7 @@ function gameLoop(now) {
     const _nextCh = Math.floor(state.level / 10) * 10 + 1;
     const _chHint = (state.level < _nextCh - 1) ? ` →Lv${_nextCh}` : '';
     const bondStr = state.bond > 0 ? ` ❤${Math.floor(state.bond)}` : '';
-    document.getElementById('stats').textContent = `[${currentChapter().name}${_chHint}] 💰${state.gold} ⚔️${state.kills} Lv${state.level}${bondStr}${comboStr}`;
+    document.getElementById('stats').textContent = `[${chapterName(currentChapter())}${_chHint}] 💰${state.gold} ⚔️${state.kills} Lv${state.level}${bondStr}${comboStr}`;
   } catch(e) { console.error(e); }
   requestAnimationFrame(gameLoop);
 }

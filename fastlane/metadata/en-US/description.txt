@@ -1,0 +1,10 @@
+BondCat is a lightweight desktop companion RPG where typing and clicking power your pixel cat's attacks. Keep the small window on your Mac, defeat monsters as you work, collect gear, hatch pets, unlock outfits, and prestige for permanent bonuses.
+
+Features:
+- Every keystroke and click can trigger an attack
+- Compact pixel window designed for desktop play
+- Gear drops, upgrades, rerolls, pets, skills, and prestige
+- English and Chinese language switching
+- Local offline save with no account required
+
+BondCat is designed as a small one-time purchase with no subscriptions and no in-app purchases.

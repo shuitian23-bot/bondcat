@@ -1,0 +1,1 @@
+Initial Mac App Store release with English and Chinese language support.

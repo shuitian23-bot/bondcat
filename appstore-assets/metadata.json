@@ -1,0 +1,32 @@
+{
+  "bundleId": "com.baiyubot.bondcat",
+  "sku": "com.baiyubot.bondcat.mac",
+  "primaryLocale": "en-US",
+  "price": {
+    "model": "paid-up-front",
+    "recommendedCustomerPriceUSD": "1.99",
+    "rationale": "Small desktop companion game with local-only progress and no in-app purchases; low-friction paid price is a better fit than subscription or high premium pricing."
+  },
+  "en-US": {
+    "name": "BondCat",
+    "subtitle": "Typing-powered pixel RPG",
+    "promotionalText": "Turn every keystroke into a strike with a compact pixel cat companion.",
+    "description": "BondCat is a lightweight desktop companion RPG where typing and clicking power your pixel cat's attacks. Keep the small window on your Mac, defeat monsters as you work, collect gear, hatch pets, unlock outfits, and prestige for permanent bonuses.\n\nFeatures:\n- Every keystroke and click can trigger an attack\n- Compact pixel window designed for desktop play\n- Gear drops, upgrades, rerolls, pets, skills, and prestige\n- English and Chinese language switching\n- Local offline save with no account required\n\nBondCat is designed as a small one-time purchase with no subscriptions and no in-app purchases.",
+    "keywords": "typing,cat,pixel,rpg,desktop,companion,keyboard,loot,pet,casual",
+    "supportUrl": "https://github.com/shuitian23-bot/bondcat/issues",
+    "marketingUrl": "https://github.com/shuitian23-bot/bondcat",
+    "whatsNew": "Initial Mac App Store release with English and Chinese language support.",
+    "reviewNotes": "BondCat requests Accessibility/Input Monitoring permission so keyboard and mouse activity can be counted as in-game attacks. The app only counts input events. It does not read typed text, record key values, transmit input data, or require an account. Progress is stored locally."
+  },
+  "zh-Hans": {
+    "name": "BondCat",
+    "subtitle": "打字驱动的像素猫 RPG",
+    "promotionalText": "每次敲键都能变成小猫的一次攻击。",
+    "description": "BondCat 是一款轻量桌面陪伴 RPG。打字和点击会驱动像素小猫攻击怪物，你可以在工作间隙收集装备、孵化宠物、解锁装扮、升级技能，并通过转生获得永久加成。\n\n主要特性：\n- 每次键盘输入和鼠标点击都可以触发攻击\n- 适合桌面常驻的小型像素窗口\n- 装备掉落、升级、重铸、宠物、技能树和转生系统\n- 支持英文和简体中文切换\n- 本地离线存档，无需账号\n\nBondCat 采用一次性买断，无订阅，无内购。",
+    "keywords": "打字,猫,像素,RPG,桌面,陪伴,键盘,装备,宠物,休闲",
+    "supportUrl": "https://github.com/shuitian23-bot/bondcat/issues",
+    "marketingUrl": "https://github.com/shuitian23-bot/bondcat",
+    "whatsNew": "首个 Mac App Store 版本，支持英文和简体中文。",
+    "reviewNotes": "BondCat 需要辅助功能/输入监控权限，用于把键盘和鼠标输入计数为游戏攻击。应用只统计输入事件，不读取输入内容，不记录具体按键，不上传输入数据，也不需要账号；进度仅保存在本地。"
+  }
+}

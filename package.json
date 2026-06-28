@@ -1,11 +1,12 @@
 {
   "name": "bondcat",
-  "version": "0.7.11",
-  "description": "像素邦德小猫·敲敲打宝 - 桌面悬浮像素养成游戏",
+  "version": "0.7.15",
+  "description": "BondCat is a typing-powered pixel companion RPG for desktop.",
   "scripts": {
     "tauri": "tauri",
     "dev": "tauri dev",
-    "build": "tauri build"
+    "build": "tauri build --features macos-private-api",
+    "build:appstore": "tauri build --no-bundle --target universal-apple-darwin --config src-tauri/tauri.appstore.conf.json && tauri bundle --bundles app --target universal-apple-darwin --config src-tauri/tauri.appstore.conf.json"
   },
   "devDependencies": {
     "@tauri-apps/cli": "^2"

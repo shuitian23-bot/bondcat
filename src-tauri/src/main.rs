@@ -107,16 +107,16 @@ fn main() {
         .plugin(tauri_plugin_shell::init())
         .invoke_handler(tauri::generate_handler![open_ax_settings])
         .setup(|app| {
-            let show = MenuItem::with_id(app, "show", "显示/隐藏", true, None::<&str>)?;
-            let backpack = MenuItem::with_id(app, "backpack", "背包", true, None::<&str>)?;
-            let shop = MenuItem::with_id(app, "shop", "商城", true, None::<&str>)?;
-            let reset = MenuItem::with_id(app, "reset", "重置存档", true, None::<&str>)?;
-            let quit = MenuItem::with_id(app, "quit", "退出", true, None::<&str>)?;
+            let show = MenuItem::with_id(app, "show", "Show / Hide", true, None::<&str>)?;
+            let backpack = MenuItem::with_id(app, "backpack", "Backpack", true, None::<&str>)?;
+            let shop = MenuItem::with_id(app, "shop", "Shop", true, None::<&str>)?;
+            let reset = MenuItem::with_id(app, "reset", "Reset Save", true, None::<&str>)?;
+            let quit = MenuItem::with_id(app, "quit", "Quit", true, None::<&str>)?;
             let menu = Menu::with_items(app, &[&show, &backpack, &shop, &reset, &quit])?;
 
             TrayIconBuilder::new()
                 .icon(app.default_window_icon().unwrap().clone())
-                .tooltip("像素邦德小猫·敲敲打宝")
+                .tooltip("BondCat")
                 .menu(&menu)
                 .on_menu_event(|app, event| {
                     let window = app.get_webview_window("main").unwrap();

@@ -1,0 +1,37 @@
+{
+  "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
+  "app": {
+    "macOSPrivateApi": false,
+    "windows": [
+      {
+        "label": "main",
+        "title": "BondCat",
+        "width": 500,
+        "height": 160,
+        "resizable": false,
+        "transparent": false,
+        "decorations": true,
+        "alwaysOnTop": false,
+        "skipTaskbar": false,
+        "shadow": true,
+        "visible": true
+      }
+    ],
+    "trayIcon": {
+      "iconPath": "icons/icon.png",
+      "iconAsTemplate": true,
+      "tooltip": "BondCat"
+    }
+  },
+  "bundle": {
+    "targets": "app",
+    "category": "Games",
+    "macOS": {
+      "signingIdentity": "80B4DE10462E13B0DF4DFDBE0A3E384BC4091F03",
+      "entitlements": "./Entitlements.appstore.plist",
+      "files": {
+        "embedded.provisionprofile": "./profiles/BondCat_Mac_App_Store.provisionprofile"
+      }
+    }
+  }
+}
