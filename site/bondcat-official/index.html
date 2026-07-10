@@ -1,0 +1,595 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>BondCat - 打字驱动的桌面小猫 RPG</title>
+  <meta name="description" content="BondCat 是一款打字驱动的桌面小猫 RPG。官网下载 macOS 和 Windows 增强版，或从 Mac App Store 获取窗口版。">
+  <meta property="og:title" content="BondCat">
+  <meta property="og:description" content="Every keystroke moves your cat forward. A tiny desktop RPG for Mac.">
+  <meta property="og:image" content="/bondcat/assets/battle_cat.png">
+  <meta property="og:type" content="website">
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #111620;
+      --panel: #171e2a;
+      --panel-2: #1d2633;
+      --line: rgba(255, 211, 122, 0.24);
+      --line-strong: rgba(255, 211, 122, 0.44);
+      --text: #f7ebd6;
+      --muted: #b8ad98;
+      --gold: #f3b454;
+      --gold-2: #ffd37a;
+      --green: #78df72;
+      --blue: #7cc4ff;
+      --red: #f07167;
+      --shadow: rgba(0, 0, 0, 0.36);
+      font-family: "Avenir Next", "Helvetica Neue", "PingFang SC", "Microsoft YaHei", sans-serif;
+    }
+
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      color: var(--text);
+      background:
+        linear-gradient(180deg, #101722 0%, #182131 56%, #111620 100%);
+      min-height: 100vh;
+      letter-spacing: 0;
+    }
+
+    a { color: inherit; }
+    .wrap { width: min(1120px, calc(100% - 40px)); margin: 0 auto; }
+
+    header {
+      position: sticky;
+      top: 0;
+      z-index: 10;
+      backdrop-filter: blur(14px);
+      background: rgba(17, 22, 32, 0.78);
+      border-bottom: 1px solid rgba(255,255,255,0.08);
+    }
+    .nav {
+      height: 68px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 20px;
+    }
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-weight: 900;
+      font-size: 18px;
+    }
+    .brand img {
+      width: 38px;
+      height: 38px;
+      border-radius: 10px;
+      box-shadow: 0 8px 18px var(--shadow);
+    }
+    .nav-links {
+      display: flex;
+      align-items: center;
+      gap: 18px;
+      color: var(--muted);
+      font-size: 14px;
+      font-weight: 700;
+    }
+    .nav-links a {
+      text-decoration: none;
+      padding: 8px 0;
+    }
+    .nav-links a:hover { color: var(--text); }
+
+    .hero {
+      min-height: calc(100vh - 68px);
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(360px, 0.92fr);
+      align-items: center;
+      gap: 48px;
+      padding: 56px 0 34px;
+    }
+    .eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      color: var(--gold-2);
+      background: rgba(243, 180, 84, 0.10);
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      padding: 7px 11px;
+      font-size: 13px;
+      font-weight: 800;
+    }
+    .dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 999px;
+      background: var(--green);
+      box-shadow: 0 0 0 4px rgba(120, 223, 114, 0.12);
+    }
+    h1 {
+      margin: 22px 0 16px;
+      font-size: clamp(44px, 8vw, 92px);
+      line-height: 0.92;
+      letter-spacing: 0;
+      font-weight: 950;
+    }
+    .lead {
+      margin: 0;
+      max-width: 660px;
+      color: #dfd2bb;
+      font-size: clamp(17px, 2vw, 22px);
+      line-height: 1.65;
+      font-weight: 600;
+      text-wrap: pretty;
+    }
+    .actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 14px;
+      margin-top: 30px;
+    }
+    .button {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 48px;
+      padding: 0 20px;
+      border-radius: 8px;
+      text-decoration: none;
+      font-weight: 900;
+      border: 1px solid transparent;
+      box-shadow: 0 12px 28px var(--shadow);
+    }
+    .button.primary {
+      color: #281805;
+      background: linear-gradient(180deg, #ffe59b, #f3ad40);
+      border-color: rgba(255, 255, 255, 0.30);
+    }
+    .button.primary:hover { filter: brightness(1.05); }
+    .button.secondary {
+      color: var(--text);
+      background: rgba(255,255,255,0.07);
+      border-color: rgba(255,255,255,0.16);
+      box-shadow: none;
+    }
+    .button.secondary:hover {
+      border-color: var(--line-strong);
+      background: rgba(255,255,255,0.10);
+    }
+    .meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      margin-top: 16px;
+      color: var(--muted);
+      font-size: 13px;
+      font-weight: 700;
+    }
+    .meta span {
+      border: 1px solid rgba(255,255,255,0.10);
+      background: rgba(0,0,0,0.12);
+      border-radius: 999px;
+      padding: 6px 10px;
+    }
+
+    .stage {
+      position: relative;
+      min-height: 380px;
+      border: 1px solid rgba(255,255,255,0.10);
+      background:
+        linear-gradient(180deg, #1b334e 0%, #173755 52%, #152235 53%, #152235 100%);
+      border-radius: 8px;
+      overflow: hidden;
+      box-shadow: 0 22px 48px var(--shadow), inset 0 1px 0 rgba(255,255,255,0.10);
+    }
+    .stage::before {
+      content: "";
+      position: absolute;
+      left: 0;
+      right: 0;
+      bottom: 58px;
+      height: 18px;
+      background:
+        repeating-linear-gradient(90deg, rgba(151, 228, 82, 0.0) 0 13px, rgba(151, 228, 82, 0.30) 13px 15px),
+        linear-gradient(180deg, #4ebc43, #21842b);
+      border-top: 2px solid #9bee62;
+      border-bottom: 4px solid #764318;
+    }
+    .stage::after {
+      content: "";
+      position: absolute;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      height: 58px;
+      background: linear-gradient(180deg, #5a2f15, #2e1c12);
+    }
+    .hero-cat {
+      position: absolute;
+      left: 8%;
+      bottom: 62px;
+      width: min(38%, 210px);
+      image-rendering: auto;
+      filter: drop-shadow(0 18px 20px rgba(0,0,0,0.32));
+      animation: catStep 1.05s steps(2, end) infinite;
+      transform-origin: 50% 100%;
+    }
+    .slime {
+      position: absolute;
+      right: 28%;
+      bottom: 62px;
+      width: 86px;
+      filter: drop-shadow(0 14px 12px rgba(0,0,0,0.28));
+      animation: bob 1.4s ease-in-out infinite;
+    }
+    .goblin {
+      position: absolute;
+      right: 8%;
+      bottom: 62px;
+      width: 96px;
+      filter: drop-shadow(0 14px 12px rgba(0,0,0,0.28));
+    }
+    .chest {
+      position: absolute;
+      left: 48%;
+      bottom: 66px;
+      width: 74px;
+      filter: drop-shadow(0 14px 12px rgba(0,0,0,0.25));
+    }
+    .stage-title {
+      position: absolute;
+      top: 26px;
+      left: 28px;
+      right: 28px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      color: #dcecff;
+      font-weight: 900;
+      text-shadow: 0 2px 0 rgba(0,0,0,0.5);
+    }
+    .stage-title strong {
+      color: var(--gold-2);
+      font-size: 22px;
+    }
+    .damage {
+      position: absolute;
+      right: 40%;
+      bottom: 172px;
+      color: #fff2d6;
+      font-weight: 950;
+      font-size: 28px;
+      text-shadow: 0 3px 0 rgba(0,0,0,0.45);
+      animation: damage 1.1s ease-in-out infinite;
+    }
+    .arrow {
+      position: absolute;
+      left: 35%;
+      bottom: 156px;
+      width: 120px;
+      height: 2px;
+      background: #ffe28a;
+      box-shadow: 0 0 12px rgba(255,226,138,0.72);
+      animation: fly 1.35s linear infinite;
+    }
+    .arrow::after {
+      content: "";
+      position: absolute;
+      right: -8px;
+      top: -5px;
+      border-left: 10px solid #ffe28a;
+      border-top: 6px solid transparent;
+      border-bottom: 6px solid transparent;
+    }
+    @keyframes catStep {
+      0%, 100% { transform: translateY(0) rotate(-1deg); }
+      50% { transform: translateY(-3px) rotate(1deg); }
+    }
+    @keyframes bob {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-8px); }
+    }
+    @keyframes damage {
+      0% { opacity: 0; transform: translateY(10px); }
+      28%, 74% { opacity: 1; transform: translateY(0); }
+      100% { opacity: 0; transform: translateY(-22px); }
+    }
+    @keyframes fly {
+      0% { transform: translateX(-42px); opacity: 0; }
+      18% { opacity: 1; }
+      100% { transform: translateX(138px); opacity: 0; }
+    }
+
+    section {
+      padding: 56px 0;
+      border-top: 1px solid rgba(255,255,255,0.08);
+    }
+    .section-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: end;
+      gap: 24px;
+      margin-bottom: 22px;
+    }
+    h2 {
+      margin: 0;
+      font-size: clamp(28px, 4vw, 48px);
+      line-height: 1.04;
+      font-weight: 950;
+    }
+    .section-note {
+      max-width: 460px;
+      color: var(--muted);
+      line-height: 1.6;
+      font-weight: 650;
+      margin: 0;
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 14px;
+    }
+    .card {
+      background: linear-gradient(180deg, rgba(255,255,255,0.065), rgba(255,255,255,0.035));
+      border: 1px solid rgba(255,255,255,0.11);
+      border-radius: 8px;
+      padding: 18px;
+      min-height: 150px;
+      box-shadow: 0 14px 30px rgba(0,0,0,0.18);
+    }
+    .card h3 {
+      margin: 0 0 10px;
+      color: #fff4dc;
+      font-size: 18px;
+      font-weight: 950;
+    }
+    .card p {
+      margin: 0;
+      color: #cfc3ae;
+      line-height: 1.62;
+      font-weight: 600;
+      text-wrap: pretty;
+    }
+    .download-panel {
+      display: grid;
+      grid-template-columns: minmax(0, 1.1fr) minmax(300px, 0.9fr);
+      gap: 18px;
+      align-items: stretch;
+    }
+    .install {
+      background: var(--panel);
+      border: 1px solid rgba(255,255,255,0.11);
+      border-radius: 8px;
+      padding: 24px;
+    }
+    .install ol {
+      margin: 18px 0 0;
+      padding-left: 22px;
+      color: #d8ccb7;
+      line-height: 1.8;
+      font-weight: 650;
+    }
+    .checksum {
+      margin-top: 18px;
+      padding: 12px;
+      border: 1px dashed rgba(255,211,122,0.34);
+      border-radius: 6px;
+      color: #cfc3ae;
+      font: 12px ui-monospace, SFMono-Regular, Menlo, monospace;
+      overflow-wrap: anywhere;
+      background: rgba(0,0,0,0.16);
+    }
+    .compare {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 14px;
+    }
+    .version-card {
+      background: var(--panel-2);
+      border: 1px solid rgba(255,255,255,0.11);
+      border-radius: 8px;
+      padding: 18px;
+    }
+    .version-card strong {
+      display: block;
+      color: var(--gold-2);
+      margin-bottom: 10px;
+      font-size: 18px;
+    }
+    .version-card ul {
+      margin: 0;
+      padding-left: 18px;
+      color: #cfc3ae;
+      line-height: 1.8;
+      font-weight: 650;
+    }
+    footer {
+      color: var(--muted);
+      padding: 28px 0 40px;
+      border-top: 1px solid rgba(255,255,255,0.08);
+      font-size: 13px;
+      font-weight: 650;
+    }
+
+    @media (max-width: 860px) {
+      .hero,
+      .download-panel,
+      .compare {
+        grid-template-columns: 1fr;
+      }
+      .hero { min-height: auto; padding-top: 38px; }
+      .stage { min-height: 330px; }
+      .grid { grid-template-columns: 1fr; }
+      .section-head { display: block; }
+      .section-note { margin-top: 12px; }
+      .nav-links { display: none; }
+    }
+    @media (max-width: 520px) {
+      .wrap { width: min(100% - 24px, 1120px); }
+      .actions { display: grid; }
+      .button { width: 100%; }
+      .hero-cat { width: 45%; left: 3%; }
+      .slime { right: 22%; width: 70px; }
+      .goblin { width: 78px; }
+      .chest { display: none; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { animation: none !important; scroll-behavior: auto !important; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="wrap nav">
+      <a class="brand" href="/bondcat/" aria-label="BondCat 首页">
+        <img src="assets/icon.png" alt="">
+        <span>BondCat</span>
+      </a>
+      <nav class="nav-links" aria-label="页面导航">
+          <a href="#download">下载</a>
+        <a href="#versions">版本区别</a>
+        <a href="#install">安装说明</a>
+      </nav>
+    </div>
+  </header>
+
+  <main>
+    <div class="wrap hero">
+      <div>
+        <div class="eyebrow"><span class="dot"></span> macOS / Windows 官网增强版已可下载</div>
+        <h1>BondCat</h1>
+        <p class="lead">把打字、点击和日常工作变成小猫冒险。每一次输入都会推进战斗、掉落装备、积累金币，让桌面边缘多一个一直陪你升级的 RPG 小伙伴。</p>
+        <div class="actions" id="download">
+          <a class="button primary" href="downloads/BondCatDesktop_0.7.15_aarch64_notarized.dmg" download>macOS 下载</a>
+          <a class="button primary" href="https://nightly.link/shuitian23-bot/bondcat/actions/runs/29063351684/bondcat-Windows-x64.zip">Windows 下载</a>
+          <a class="button secondary" href="https://apps.apple.com/us/app/bondcat/id6785263611?mt=12">打开 Mac App Store 版</a>
+        </div>
+        <div class="meta">
+          <span>Version 0.7.15</span>
+          <span>macOS DMG 约 41 MB</span>
+          <span>Windows ZIP 约 158 MB</span>
+          <span>macOS Apple Notarized</span>
+          <span>Windows x64</span>
+        </div>
+      </div>
+
+      <div class="stage" aria-label="BondCat 游戏预览">
+        <div class="stage-title"><strong>Typing RPG</strong><span>Lv 42 · Combo 18x</span></div>
+        <img class="hero-cat" id="heroCat" src="assets/battle_cat_walk1.png" alt="BondCat 战斗小猫">
+        <div class="arrow" aria-hidden="true"></div>
+        <img class="chest" src="assets/chest_rare.png" alt="">
+        <img class="slime" src="assets/slime.png" alt="">
+        <img class="goblin" src="assets/goblin.png" alt="">
+        <div class="damage">CRIT -128</div>
+      </div>
+    </div>
+
+    <section>
+      <div class="wrap">
+        <div class="section-head">
+          <h2>桌面边缘的打字 RPG</h2>
+          <p class="section-note">官网增强版适合想在其它应用里打字时也推进游戏的用户；App Store 版适合只需要窗口内游玩的 Mac 用户。</p>
+        </div>
+        <div class="grid">
+          <div class="card">
+            <h3>打字推进</h3>
+            <p>键盘输入和鼠标点击会变成攻击节奏，小猫会推进、停步、攻击、拾取掉落，适合放在屏幕边缘长期陪伴。</p>
+          </div>
+          <div class="card">
+            <h3>装备与皮肤</h3>
+            <p>开箱、穿装、换武器、换外观，近战、远程和法术有不同的出手节奏与战斗反馈。</p>
+          </div>
+          <div class="card">
+            <h3>安全分发</h3>
+            <p>官网增强版使用 Developer ID 签名并通过 Apple notarize，可在 Gatekeeper 校验下安装。</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="versions">
+      <div class="wrap">
+        <div class="section-head">
+          <h2>两个版本怎么选</h2>
+          <p class="section-note">两个版本存档和玩法方向一致，差异主要是输入方式和分发渠道。</p>
+        </div>
+        <div class="compare">
+          <div class="version-card">
+            <strong>官网增强版</strong>
+            <ul>
+              <li>支持全局键盘/鼠标输入触发战斗</li>
+              <li>需要用户在系统设置中授权</li>
+              <li>适合放在桌面边缘长期运行</li>
+              <li>Developer ID 签名 + Apple notarize</li>
+            </ul>
+          </div>
+          <div class="version-card">
+            <strong>Mac App Store 版</strong>
+            <ul>
+              <li>只在 BondCat 窗口激活时响应输入</li>
+              <li>不需要 Accessibility 或 Input Monitoring</li>
+              <li>适合想从 App Store 购买和更新的用户</li>
+              <li>已经可在全球 App Store 分发</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="install">
+      <div class="wrap download-panel">
+        <div class="install">
+          <h2>安装 macOS 版</h2>
+          <ol>
+            <li>点击“macOS 下载”，打开 DMG。</li>
+            <li>把 BondCat Desktop 拖到 Applications。</li>
+            <li>首次打开后，按提示在系统设置中允许 Accessibility 和 Input Monitoring。</li>
+            <li>重启 BondCat Desktop，把窗口放到桌面边缘即可开始。</li>
+          </ol>
+          <div class="checksum">
+            macOS SHA-256<br>
+            f9a1302dddd48931ff7cc4f2e433031f6bcdecd7ba0fff9a542715bbd1858d30
+          </div>
+        </div>
+        <div class="install">
+          <h2>安装 Windows 版</h2>
+          <ol>
+            <li>点击“Windows 下载”，得到 bondcat-Windows-x64.zip。</li>
+            <li>解压后运行 EXE 安装程序，安装完成后启动 BondCat Desktop。</li>
+            <li>Windows 版使用全局键盘/鼠标监听，适合放在桌面边缘运行。</li>
+            <li>当前 Windows 包未接入代码签名证书，首次安装可能出现 SmartScreen 提示。</li>
+          </ol>
+          <div class="checksum">
+            Windows EXE SHA-256<br>
+            e1def1270c0123a779a82b297f9631ef632dac359d73fa9eda6c1d39ec80c87a
+          </div>
+          <div class="actions">
+            <a class="button primary" href="downloads/BondCatDesktop_0.7.15_aarch64_notarized.dmg" download>下载 macOS DMG</a>
+            <a class="button primary" href="https://nightly.link/shuitian23-bot/bondcat/actions/runs/29063351684/bondcat-Windows-x64.zip">下载 Windows ZIP</a>
+            <a class="button secondary" href="https://github.com/shuitian23-bot/bondcat/actions/runs/29063351684">查看构建记录</a>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <div class="wrap">BondCat is a typing-powered desktop companion RPG for macOS and Windows.</div>
+  </footer>
+  <script>
+    const catFrames = ["assets/battle_cat_walk1.png", "assets/battle_cat_walk6.png"];
+    const heroCat = document.getElementById("heroCat");
+    let catFrame = 0;
+    window.setInterval(() => {
+      catFrame = (catFrame + 1) % catFrames.length;
+      heroCat.src = catFrames[catFrame];
+    }, 520);
+  </script>
+</body>
+</html>

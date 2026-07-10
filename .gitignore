@@ -8,3 +8,4 @@ appstore-assets/**/ui-*-small.png
 fastlane/app_store_connect_api_key.json
 .DS_Store
 *.log
+site/bondcat-official/downloads/
