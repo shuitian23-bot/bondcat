@@ -363,6 +363,8 @@
       align-items: stretch;
     }
     .install {
+      display: flex;
+      flex-direction: column;
       background: var(--panel);
       border: 1px solid rgba(255,255,255,0.11);
       border-radius: 8px;
@@ -384,6 +386,10 @@
       font: 12px ui-monospace, SFMono-Regular, Menlo, monospace;
       overflow-wrap: anywhere;
       background: rgba(0,0,0,0.16);
+    }
+    .install .actions {
+      margin-top: auto;
+      padding-top: 24px;
     }
     .compare {
       display: grid;
@@ -556,6 +562,9 @@
             macOS SHA-256<br>
             f9a1302dddd48931ff7cc4f2e433031f6bcdecd7ba0fff9a542715bbd1858d30
           </div>
+          <div class="actions">
+            <a class="button primary" href="downloads/BondCatDesktop_0.7.15_aarch64_notarized.dmg" download>下载 macOS DMG</a>
+          </div>
         </div>
         <div class="install">
           <h2>安装 Windows 版</h2>
@@ -570,7 +579,6 @@
             e1def1270c0123a779a82b297f9631ef632dac359d73fa9eda6c1d39ec80c87a
           </div>
           <div class="actions">
-            <a class="button primary" href="downloads/BondCatDesktop_0.7.15_aarch64_notarized.dmg" download>下载 macOS DMG</a>
             <a class="button primary" href="https://nightly.link/shuitian23-bot/bondcat/actions/runs/29063351684/bondcat-Windows-x64.zip">下载 Windows ZIP</a>
             <a class="button secondary" href="https://github.com/shuitian23-bot/bondcat/actions/runs/29063351684">查看构建记录</a>
           </div>
