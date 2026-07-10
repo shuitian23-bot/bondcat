@@ -5,10 +5,16 @@
   "scripts": {
     "tauri": "tauri",
     "dev": "tauri dev",
-    "build": "tauri build --features macos-private-api",
-    "build:appstore": "tauri build --no-bundle --target universal-apple-darwin --config src-tauri/tauri.appstore.conf.json && tauri bundle --bundles app --target universal-apple-darwin --config src-tauri/tauri.appstore.conf.json"
+    "build": "npm run build:desktop",
+    "build:desktop": "tauri build --features macos-private-api --config src-tauri/tauri.desktop.conf.json",
+    "build:desktop:legacy": "tauri build --features macos-private-api",
+    "build:appstore": "tauri build --features appstore --bundles app --target universal-apple-darwin --config src-tauri/tauri.appstore.conf.json"
   },
   "devDependencies": {
     "@tauri-apps/cli": "^2"
+  },
+  "dependencies": {
+    "@tweenjs/tween.js": "^25.0.0",
+    "matter-js": "^0.20.0"
   }
 }

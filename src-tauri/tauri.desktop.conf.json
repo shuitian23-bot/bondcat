@@ -1,0 +1,40 @@
+{
+  "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
+  "productName": "BondCat Desktop",
+  "identifier": "com.baiyubot.bondcat.desktop",
+  "app": {
+    "macOSPrivateApi": true,
+    "windows": [
+      {
+        "label": "main",
+        "title": "BondCat Desktop",
+        "width": 500,
+        "height": 160,
+        "minWidth": 360,
+        "minHeight": 120,
+        "resizable": true,
+        "transparent": true,
+        "decorations": false,
+        "alwaysOnTop": true,
+        "skipTaskbar": true,
+        "shadow": false,
+        "visible": true
+      }
+    ],
+    "trayIcon": {
+      "iconPath": "icons/icon.png",
+      "iconAsTemplate": true,
+      "tooltip": "BondCat Desktop"
+    }
+  },
+  "bundle": {
+    "targets": "all",
+    "category": "Games",
+    "shortDescription": "Typing-powered desktop companion RPG.",
+    "longDescription": "BondCat Desktop is the enhanced desktop build with global keyboard and mouse input support after user-granted system permissions.",
+    "macOS": {
+      "hardenedRuntime": true,
+      "signingIdentity": "Developer ID Application: Beijing Suanwu Yice Technology Co., Ltd (FC748AG3Z3)"
+    }
+  }
+}
