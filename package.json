@@ -1,17 +1,25 @@
 {
   "name": "bondcat",
-  "version": "0.7.15",
+  "version": "0.7.21",
   "description": "BondCat is a typing-powered pixel companion RPG for desktop.",
   "scripts": {
     "tauri": "tauri",
     "dev": "tauri dev",
+    "test:core": "node --test tests/game-core.test.mjs",
+    "test:browser": "node --test tests/game-browser.test.mjs",
+    "test": "npm run test:core && npm run test:browser",
+    "visual:regression": "node tools/bondcat-visual-scenes.js target/visual-regression && node tools/verify-visual-scenes.js --scenes-only",
+    "visual:verify": "node tools/verify-visual-scenes.js",
+    "steam:screenshots": "node tools/generate-steam-screenshots.js && node tools/verify-visual-scenes.js --steam-only",
     "build": "npm run build:desktop",
     "build:desktop": "tauri build --features macos-private-api --config src-tauri/tauri.desktop.conf.json",
     "build:desktop:legacy": "tauri build --features macos-private-api",
     "build:appstore": "tauri build --features appstore --bundles app --target universal-apple-darwin --config src-tauri/tauri.appstore.conf.json"
   },
   "devDependencies": {
-    "@tauri-apps/cli": "^2"
+    "@tauri-apps/cli": "^2",
+    "playwright": "^1.61.1",
+    "pngjs": "^7.0.0"
   },
   "dependencies": {
     "@tweenjs/tween.js": "^25.0.0",

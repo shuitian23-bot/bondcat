@@ -1,6 +1,6 @@
 [package]
 name = "bondcat"
-version = "0.7.15"
+version = "0.7.21"
 description = "像素邦德小猫·敲敲打宝"
 authors = ["baiyu"]
 edition = "2021"
@@ -23,3 +23,10 @@ default = ["custom-protocol"]
 custom-protocol = ["tauri/custom-protocol"]
 macos-private-api = ["tauri/macos-private-api"]
 appstore = []
+
+[profile.release]
+codegen-units = 1
+lto = true
+opt-level = "s"
+panic = "abort"
+strip = "symbols"

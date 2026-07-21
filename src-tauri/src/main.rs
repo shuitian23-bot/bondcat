@@ -8,7 +8,9 @@ use tauri::{
 use serde::Deserialize;
 use std::thread;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
-use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::atomic::{AtomicU64, AtomicU8, Ordering};
+#[cfg(all(target_os = "macos", not(feature = "appstore")))]
+use std::sync::atomic::AtomicPtr;
 use std::sync::{Arc, Mutex};
 
 #[cfg(all(target_os = "macos", not(feature = "appstore")))]
@@ -20,6 +22,18 @@ use std::ffi::c_void;
 mod macos {
     use std::ffi::c_void;
 
+    #[repr(C)]
+    pub struct CGEventTapProxyOpaque {
+        _private: [u8; 0],
+    }
+
+    #[repr(C)]
+    pub struct CFMachPortOpaque {
+        _private: [u8; 0],
+    }
+
+    pub type CGEventTapProxy = *mut CGEventTapProxyOpaque;
+    pub type CFMachPortRef = *mut CFMachPortOpaque;
     pub type CGEventRef = *mut c_void;
     pub type CGEventMask = u64;
     pub type CGEventType = u32;
@@ -32,11 +46,13 @@ mod macos {
     pub const RIGHT_MOUSE_DRAGGED: CGEventType = 7;
     pub const OTHER_MOUSE_DOWN: CGEventType = 25;
     pub const OTHER_MOUSE_DRAGGED: CGEventType = 27;
+    pub const TAP_DISABLED_BY_TIMEOUT: CGEventType = 0xFFFF_FFFE;
+    pub const TAP_DISABLED_BY_USER_INPUT: CGEventType = 0xFFFF_FFFF;
 
     pub fn mask_bit(t: CGEventType) -> CGEventMask { 1u64 << (t as u64) }
 
     pub type TapCallback = unsafe extern "C" fn(
-        *mut c_void, CGEventType, CGEventRef, *mut c_void
+        CGEventTapProxy, CGEventType, CGEventRef, *mut c_void
     ) -> CGEventRef;
 
     #[link(name = "CoreGraphics", kind = "framework")]
@@ -45,8 +61,9 @@ mod macos {
             tap: u32, place: u32, options: u32,
             events_of_interest: CGEventMask,
             callback: TapCallback, user_info: *mut c_void,
-        ) -> *mut c_void;
-        pub fn CGEventTapEnable(tap: *mut c_void, enable: bool);
+        ) -> CFMachPortRef;
+        pub fn CGEventTapEnable(tap: CFMachPortRef, enable: bool);
+        pub fn CGEventTapIsEnabled(tap: CFMachPortRef) -> bool;
     }
 
     #[link(name = "IOKit", kind = "framework")]
@@ -58,7 +75,7 @@ mod macos {
     #[link(name = "CoreFoundation", kind = "framework")]
     extern "C" {
         pub fn CFMachPortCreateRunLoopSource(
-            allocator: *const c_void, port: *mut c_void, order: i64,
+            allocator: *const c_void, port: CFMachPortRef, order: i64,
         ) -> *mut c_void;
         pub fn CFRunLoopGetCurrent() -> *mut c_void;
         pub fn CFRunLoopAddSource(rl: *mut c_void, source: *mut c_void, mode: *const c_void);
@@ -90,6 +107,14 @@ static KEY_COUNTER: AtomicU64 = AtomicU64::new(0);
 static MOUSE_COUNTER: AtomicU64 = AtomicU64::new(0);
 static MOUSE_MOVE_COUNTER: AtomicU64 = AtomicU64::new(0);
 static INTERACTIVE_UNTIL: AtomicU64 = AtomicU64::new(0);
+const INPUT_STATUS_PENDING: u8 = 0;
+const INPUT_STATUS_READY: u8 = 1;
+const INPUT_STATUS_ACCESSIBILITY_NEEDED: u8 = 2;
+const INPUT_STATUS_INPUT_MONITORING_NEEDED: u8 = 3;
+
+static INPUT_MONITOR_STATUS: AtomicU8 = AtomicU8::new(INPUT_STATUS_PENDING);
+#[cfg(all(target_os = "macos", not(feature = "appstore")))]
+static EVENT_TAP: AtomicPtr<macos::CFMachPortOpaque> = AtomicPtr::new(std::ptr::null_mut());
 
 #[derive(Clone, Debug, Deserialize)]
 struct UiRegion {
@@ -150,9 +175,25 @@ fn place_window_on_primary(app: &tauri::AppHandle, window: &tauri::WebviewWindow
 
 #[cfg(all(target_os = "macos", not(feature = "appstore")))]
 unsafe extern "C" fn on_event(
-    _proxy: *mut c_void, etype: macos::CGEventType,
+    _proxy: macos::CGEventTapProxy, etype: macos::CGEventType,
     event: macos::CGEventRef, _info: *mut c_void,
 ) -> macos::CGEventRef {
+    if etype == macos::TAP_DISABLED_BY_TIMEOUT || etype == macos::TAP_DISABLED_BY_USER_INPUT {
+        let tap = EVENT_TAP.load(Ordering::Acquire);
+        if tap.is_null() {
+            INPUT_MONITOR_STATUS.store(INPUT_STATUS_INPUT_MONITORING_NEEDED, Ordering::Release);
+            return event;
+        }
+
+        macos::CGEventTapEnable(tap, true);
+        let status = if macos::CGEventTapIsEnabled(tap) {
+            INPUT_STATUS_READY
+        } else {
+            INPUT_STATUS_INPUT_MONITORING_NEEDED
+        };
+        INPUT_MONITOR_STATUS.store(status, Ordering::Release);
+        return event;
+    }
     if etype == macos::KEY_DOWN {
         KEY_COUNTER.fetch_add(1, Ordering::Relaxed);
     } else if etype == macos::LEFT_MOUSE_DOWN
@@ -189,8 +230,41 @@ fn build_channel() -> &'static str {
     if cfg!(feature = "appstore") {
         "appstore"
     } else {
-        "desktop"
+        option_env!("BONDCAT_BUILD_CHANNEL").unwrap_or("desktop")
     }
+}
+
+#[tauri::command]
+fn input_monitor_status() -> &'static str {
+    if cfg!(feature = "appstore") {
+        return "window-only";
+    }
+    input_monitor_status_from_code(INPUT_MONITOR_STATUS.load(Ordering::Acquire))
+}
+
+fn input_monitor_status_from_code(status: u8) -> &'static str {
+    match status {
+        INPUT_STATUS_READY => "ready",
+        INPUT_STATUS_ACCESSIBILITY_NEEDED => "accessibility-needed",
+        INPUT_STATUS_INPUT_MONITORING_NEEDED => "input-monitoring-needed",
+        _ => "pending",
+    }
+}
+
+#[cfg(all(target_os = "macos", not(feature = "appstore")))]
+fn refresh_event_tap_status() -> u8 {
+    let tap = EVENT_TAP.load(Ordering::Acquire);
+    if tap.is_null() {
+        return INPUT_MONITOR_STATUS.load(Ordering::Acquire);
+    }
+
+    let status = if unsafe { macos::CGEventTapIsEnabled(tap) } {
+        INPUT_STATUS_READY
+    } else {
+        INPUT_STATUS_INPUT_MONITORING_NEEDED
+    };
+    INPUT_MONITOR_STATUS.store(status, Ordering::Release);
+    status
 }
 
 #[tauri::command]
@@ -285,14 +359,15 @@ fn main() {
 
     #[cfg(feature = "appstore")]
     let builder =
-        builder.invoke_handler(tauri::generate_handler![set_interactive_regions, build_channel]);
+        builder.invoke_handler(tauri::generate_handler![set_interactive_regions, build_channel, input_monitor_status]);
 
     #[cfg(not(feature = "appstore"))]
     let builder = builder.invoke_handler(tauri::generate_handler![
         open_ax_settings,
         open_input_settings,
         set_interactive_regions,
-        build_channel
+        build_channel,
+        input_monitor_status
     ]);
 
     builder
@@ -360,6 +435,7 @@ fn main() {
             // ---- Global input: Windows/Linux via rdev ----
             #[cfg(not(target_os = "macos"))]
             {
+                INPUT_MONITOR_STATUS.store(INPUT_STATUS_READY, Ordering::Release);
                 let app_handle = app.handle().clone();
                 // Poll-emit thread (同 mac 分支, 读取 KEY/MOUSE_COUNTER 发事件)
                 let h_poll = app_handle.clone();
@@ -378,8 +454,16 @@ fn main() {
                         }
                         tick += 1;
                         if tick % 20 == 0 {
-                            let _ = h_poll.emit("input-heartbeat", serde_json::json!({"k": k, "m": m, "mv": mv}));
-                            let _ = h_poll.emit("input-tap-ok", ());
+                            let status = INPUT_MONITOR_STATUS.load(Ordering::Acquire);
+                            let _ = h_poll.emit("input-heartbeat", serde_json::json!({
+                                "k": k,
+                                "m": m,
+                                "mv": mv,
+                                "status": input_monitor_status_from_code(status),
+                            }));
+                            if status == INPUT_STATUS_READY {
+                                let _ = h_poll.emit("input-tap-ok", ());
+                            }
                         }
                     }
                 });
@@ -401,6 +485,7 @@ fn main() {
                         }
                     }) {
                         eprintln!("rdev listen failed: {:?}", e);
+                        INPUT_MONITOR_STATUS.store(INPUT_STATUS_INPUT_MONITORING_NEEDED, Ordering::Release);
                         let _ = app_handle.emit("input-tap-failed", ());
                     }
                 });
@@ -433,6 +518,7 @@ fn main() {
                 let app_handle = app.handle().clone();
 
                 if !trusted {
+                    INPUT_MONITOR_STATUS.store(INPUT_STATUS_ACCESSIBILITY_NEEDED, Ordering::Release);
                     let h = app.handle().clone();
                     thread::spawn(move || {
                         thread::sleep(Duration::from_millis(500));
@@ -456,12 +542,30 @@ fn main() {
                         );
 
                         if tap.is_null() {
+                            if INPUT_MONITOR_STATUS.load(Ordering::Acquire) != INPUT_STATUS_ACCESSIBILITY_NEEDED {
+                                INPUT_MONITOR_STATUS.store(
+                                    INPUT_STATUS_INPUT_MONITORING_NEEDED,
+                                    Ordering::Release,
+                                );
+                            }
                             let _ = app_handle.emit("input-tap-failed", ());
                             return;
                         }
 
+                        EVENT_TAP.store(tap, Ordering::Release);
                         macos::CGEventTapEnable(tap, true);
-                        let _ = app_handle.emit("input-tap-ok", ());
+                        let status = if macos::CGEventTapIsEnabled(tap) {
+                            INPUT_STATUS_READY
+                        } else {
+                            INPUT_STATUS_INPUT_MONITORING_NEEDED
+                        };
+                        INPUT_MONITOR_STATUS.store(status, Ordering::Release);
+                        if status == INPUT_STATUS_READY {
+                            let _ = app_handle.emit("input-tap-ok", ());
+                        } else {
+                            let _ = app_handle.emit("input-tap-failed", ());
+                            return;
+                        }
 
                         let source = macos::CFMachPortCreateRunLoopSource(
                             std::ptr::null(), tap, 0,
@@ -474,6 +578,7 @@ fn main() {
                         thread::spawn(move || {
                             let mut last_total = 0u64;
                             let mut tick = 0u64;
+                            let mut last_status = INPUT_STATUS_READY;
                             loop {
                                 thread::sleep(Duration::from_millis(30));
                                 let k = KEY_COUNTER.load(Ordering::Relaxed);
@@ -486,8 +591,21 @@ fn main() {
                                 }
                                 tick += 1;
                                 if tick % 20 == 0 {
-                                    let _ = h2.emit("input-heartbeat", serde_json::json!({"k": k, "m": m, "mv": mv}));
-                                    let _ = h2.emit("input-tap-ok", ());
+                                    let status = refresh_event_tap_status();
+                                    let _ = h2.emit("input-heartbeat", serde_json::json!({
+                                        "k": k,
+                                        "m": m,
+                                        "mv": mv,
+                                        "status": input_monitor_status_from_code(status),
+                                    }));
+                                    if status != last_status {
+                                        if status == INPUT_STATUS_READY {
+                                            let _ = h2.emit("input-tap-ok", ());
+                                        } else {
+                                            let _ = h2.emit("input-tap-failed", ());
+                                        }
+                                        last_status = status;
+                                    }
                                 }
                             }
                         });
@@ -510,4 +628,24 @@ fn main() {
         })
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn maps_input_monitor_status_codes() {
+        assert_eq!(input_monitor_status_from_code(INPUT_STATUS_PENDING), "pending");
+        assert_eq!(input_monitor_status_from_code(INPUT_STATUS_READY), "ready");
+        assert_eq!(
+            input_monitor_status_from_code(INPUT_STATUS_ACCESSIBILITY_NEEDED),
+            "accessibility-needed"
+        );
+        assert_eq!(
+            input_monitor_status_from_code(INPUT_STATUS_INPUT_MONITORING_NEEDED),
+            "input-monitoring-needed"
+        );
+        assert_eq!(input_monitor_status_from_code(u8::MAX), "pending");
+    }
 }

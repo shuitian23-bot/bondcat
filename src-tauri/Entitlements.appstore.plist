@@ -8,5 +8,7 @@
   <string>FC748AG3Z3</string>
   <key>com.apple.security.app-sandbox</key>
   <true/>
+  <key>com.apple.security.network.client</key>
+  <true/>
 </dict>
 </plist>

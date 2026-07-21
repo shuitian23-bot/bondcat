@@ -150,7 +150,7 @@ dependencies = [
 
 [[package]]
 name = "bondcat"
-version = "0.7.15"
+version = "0.7.21"
 dependencies = [
  "rdev",
  "serde",

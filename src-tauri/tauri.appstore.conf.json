@@ -1,14 +1,26 @@
 {
   "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
+  "productName": "BondCat",
+  "version": "0.7.17",
+  "identifier": "com.baiyubot.bondcat",
+  "build": {
+    "beforeBuildCommand": "node tools/prepare-appstore-frontend.mjs",
+    "frontendDist": "../target/appstore-frontend",
+    "devUrl": "http://localhost:1420"
+  },
   "app": {
+    "withGlobalTauri": true,
     "macOSPrivateApi": false,
     "windows": [
       {
         "label": "main",
+        "url": "index.html?channel=appstore",
         "title": "BondCat",
-        "width": 500,
-        "height": 160,
-        "resizable": false,
+        "width": 900,
+        "height": 520,
+        "minWidth": 760,
+        "minHeight": 420,
+        "resizable": true,
         "transparent": false,
         "decorations": true,
         "alwaysOnTop": false,
@@ -17,6 +29,9 @@
         "visible": true
       }
     ],
+    "security": {
+      "csp": null
+    },
     "trayIcon": {
       "iconPath": "icons/icon.png",
       "iconAsTemplate": true,
@@ -27,7 +42,8 @@
     "targets": "app",
     "category": "Games",
     "macOS": {
-      "signingIdentity": "80B4DE10462E13B0DF4DFDBE0A3E384BC4091F03",
+      "bundleVersion": "0.7.23",
+      "signingIdentity": "6909963387DA080ABB63C1AC3866585DB172F78F",
       "entitlements": "./Entitlements.appstore.plist",
       "files": {
         "embedded.provisionprofile": "./profiles/BondCat_Mac_App_Store.provisionprofile"
